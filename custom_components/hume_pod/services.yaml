@@ -1,0 +1,16 @@
+assign_weigh_in:
+  fields:
+    person:
+      required: true
+      selector:
+        device:
+          integration: hume_pod
+          model: Body Pod profile
+discard_weigh_in:
+  fields:
+    scale:
+      required: true
+      selector:
+        device:
+          integration: hume_pod
+          model: Body Pod

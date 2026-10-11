@@ -11,21 +11,24 @@
       "bluetooth_confirm": {
         "description": "Set up {name}?"
       },
-      "profile": {
-        "title": "Who is this profile for?",
-        "description": "Body composition is estimated from impedance using this profile. Add the integration again for each extra person (see README).",
+      "person": {
+        "title": "First person",
+        "description": "Add the first person who uses the scale. You can add more people afterwards from the integration page; weigh-ins are matched to people automatically by weight and body fat.",
         "data": {
           "name": "Name",
           "sex": "Sex",
           "birthdate": "Date of birth",
           "height": "Height",
-          "activity": "Activity level"
+          "activity": "Activity level",
+          "expected_weight": "Approximate weight"
         },
         "data_description": {
+          "name": "Used for this person's device and entity names.",
           "sex": "Used by the body-composition equations.",
           "birthdate": "Age is recalculated at every weigh-in.",
           "height": "In centimetres.",
-          "activity": "Sent to the scale with the profile."
+          "activity": "Sent to the scale with the profile.",
+          "expected_weight": "Optional. Helps recognise this person's first weigh-in when several people share the scale."
         }
       }
     },
@@ -34,21 +37,73 @@
       "no_devices_found": "No Body Pod found. Tap the scale to wake it, make sure a Bluetooth adapter or proxy is in range, and try again."
     }
   },
+  "config_subentries": {
+    "person": {
+      "entry_type": "Person",
+      "initiate_flow": {
+        "user": "Add person"
+      },
+      "step": {
+        "user": {
+          "title": "Add person",
+          "data": {
+            "name": "Name",
+            "sex": "Sex",
+            "birthdate": "Date of birth",
+            "height": "Height",
+            "activity": "Activity level",
+            "expected_weight": "Approximate weight"
+          },
+          "data_description": {
+            "name": "Used for this person's device and entity names.",
+            "sex": "Used by the body-composition equations.",
+            "birthdate": "Age is recalculated at every weigh-in.",
+            "height": "In centimetres.",
+            "activity": "Sent to the scale with the profile.",
+            "expected_weight": "Optional. Helps recognise this person's first weigh-in when several people share the scale."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit person",
+          "data": {
+            "name": "Name",
+            "sex": "Sex",
+            "birthdate": "Date of birth",
+            "height": "Height",
+            "activity": "Activity level",
+            "expected_weight": "Approximate weight"
+          },
+          "data_description": {
+            "name": "Used for this person's device and entity names.",
+            "sex": "Used by the body-composition equations.",
+            "birthdate": "Age is recalculated at every weigh-in.",
+            "height": "In centimetres.",
+            "activity": "Sent to the scale with the profile.",
+            "expected_weight": "Optional. Helps recognise this person's first weigh-in when several people share the scale."
+          }
+        }
+      },
+      "error": {
+        "name_taken": "Someone with this name is already set up on this scale."
+      },
+      "abort": {
+        "entry_not_loaded": "The scale must be loaded before people can be added.",
+        "reconfigure_successful": "Person updated."
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
-        "title": "Body profile",
+        "title": "Matching people to weigh-ins",
+        "description": "A weigh-in goes to the person whose last weight and body fat it is closest to. If nobody is within the weight tolerance, or two people are too close to call, it is kept as an unassigned weigh-in for you to assign.",
         "data": {
-          "sex": "Sex",
-          "birthdate": "Date of birth",
-          "height": "Height",
-          "activity": "Activity level"
+          "weight_tolerance": "Weight tolerance",
+          "fat_tolerance": "Body fat tolerance"
         },
         "data_description": {
-          "sex": "Used by the body-composition equations.",
-          "birthdate": "Age is recalculated at every weigh-in.",
-          "height": "In centimetres.",
-          "activity": "Sent to the scale with the profile."
+          "weight_tolerance": "How far a weigh-in may be from a person's last weight and still count as them.",
+          "fat_tolerance": "Typical body-fat change, in percentage points, between weigh-ins. Used to tell apart people of similar weight."
         }
       }
     }
@@ -148,6 +203,31 @@
       "last_measured": {
         "name": "Last measured"
       },
+      "last_weigh_in": {
+        "name": "Last weigh-in"
+      },
+      "unassigned_weigh_in": {
+        "name": "Unassigned weigh-in",
+        "state_attributes": {
+          "measured_at": {
+            "name": "Measured at"
+          },
+          "reason": {
+            "name": "Reason",
+            "state": {
+              "no_match": "Nobody within tolerance",
+              "ambiguous": "Too close to call",
+              "no_people": "No people set up"
+            }
+          },
+          "has_body_composition": {
+            "name": "Has body composition"
+          },
+          "match_distances": {
+            "name": "Match distances"
+          }
+        }
+      },
       "right_arm_muscle": {
         "name": "Muscle right arm"
       },
@@ -230,6 +310,48 @@
           "connecting": "Connecting",
           "measuring": "Measuring",
           "error": "Error"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_scanner": {
+      "message": "No connectable Bluetooth adapter or proxy is available to reach the Body Pod."
+    },
+    "no_pending_weigh_in": {
+      "message": "There is no unassigned weigh-in on this scale."
+    },
+    "person_not_on_scale": {
+      "message": "That person is not set up on this scale."
+    },
+    "not_a_person": {
+      "message": "Choose a person's device, not the scale itself."
+    },
+    "unknown_device": {
+      "message": "That device does not belong to the Hume Body Pod integration."
+    },
+    "scale_not_loaded": {
+      "message": "The Body Pod integration for that device is not loaded."
+    }
+  },
+  "services": {
+    "assign_weigh_in": {
+      "name": "Assign weigh-in",
+      "description": "Records the scale's unassigned weigh-in against a person.",
+      "fields": {
+        "person": {
+          "name": "Person",
+          "description": "The person's device. Their scale's unassigned weigh-in is assigned to them."
+        }
+      }
+    },
+    "discard_weigh_in": {
+      "name": "Discard weigh-in",
+      "description": "Throws away the scale's unassigned weigh-in, for example a guest.",
+      "fields": {
+        "scale": {
+          "name": "Scale",
+          "description": "The Body Pod whose unassigned weigh-in to discard."
         }
       }
     }

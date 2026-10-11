@@ -9,8 +9,8 @@ as consumer-scale estimates, not clinical values.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
+import math
 
 SEG_NAMES = ("right_arm", "left_arm", "trunk", "right_leg", "left_leg")
 SEG_WEIGHT = {
@@ -49,7 +49,7 @@ def compute_bmi(weight_kg: float, height_cm: float) -> float:
 
 def compute_body_composition(
     imp_low: Sequence[float],
-    imp_high: Sequence[float],  # noqa: ARG001 - kept for future 2-frequency models
+    imp_high: Sequence[float],
     weight_kg: float,
     height_cm: float,
     age: int,

@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    name: Check manifest version matches tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compare
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(jq -r .version custom_components/hume_pod/manifest.json)
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::Release tag $tag does not match manifest version $manifest"
+            exit 1
+          fi

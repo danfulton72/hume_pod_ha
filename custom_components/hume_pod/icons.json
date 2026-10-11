@@ -1,0 +1,181 @@
+{
+  "entity": {
+    "sensor": {
+      "weight": {
+        "default": "mdi:scale-bathroom"
+      },
+      "bmi": {
+        "default": "mdi:human"
+      },
+      "body_fat": {
+        "default": "mdi:water-percent"
+      },
+      "fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "visceral_fat": {
+        "default": "mdi:stomach"
+      },
+      "lean_mass": {
+        "default": "mdi:arm-flex"
+      },
+      "skeletal_muscle_mass": {
+        "default": "mdi:arm-flex"
+      },
+      "body_water": {
+        "default": "mdi:water"
+      },
+      "total_body_water": {
+        "default": "mdi:water"
+      },
+      "extracellular_water": {
+        "default": "mdi:water-outline"
+      },
+      "intracellular_water": {
+        "default": "mdi:water-outline"
+      },
+      "bone_mineral": {
+        "default": "mdi:bone"
+      },
+      "mineral_mass": {
+        "default": "mdi:bone"
+      },
+      "skeletal_mass": {
+        "default": "mdi:skull"
+      },
+      "organ_mass": {
+        "default": "mdi:heart-pulse"
+      },
+      "bmr": {
+        "default": "mdi:fire"
+      },
+      "metabolic_age": {
+        "default": "mdi:calendar-account"
+      },
+      "body_cell_mass": {
+        "default": "mdi:molecule"
+      },
+      "live_weight": {
+        "default": "mdi:scale-bathroom"
+      },
+      "unassigned_weigh_in": {
+        "default": "mdi:account-question"
+      },
+      "last_weigh_in": {
+        "default": "mdi:clock-outline"
+      },
+      "last_measured": {
+        "default": "mdi:clock-outline"
+      },
+      "subcutaneous_fat": {
+        "default": "mdi:water-percent"
+      },
+      "subcutaneous_fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "android_fat": {
+        "default": "mdi:human-male"
+      },
+      "gynoid_fat": {
+        "default": "mdi:human-female"
+      },
+      "android_gynoid_ratio": {
+        "default": "mdi:division"
+      },
+      "lean_mass_percentage": {
+        "default": "mdi:arm-flex"
+      },
+      "status": {
+        "default": "mdi:bluetooth",
+        "state": {
+          "connecting": "mdi:bluetooth-connect",
+          "measuring": "mdi:bluetooth-audio",
+          "error": "mdi:bluetooth-off"
+        }
+      },
+      "right_arm_muscle": {
+        "default": "mdi:arm-flex"
+      },
+      "right_arm_fat": {
+        "default": "mdi:water-percent"
+      },
+      "right_arm_fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "impedance_low_right_arm": {
+        "default": "mdi:omega"
+      },
+      "impedance_high_right_arm": {
+        "default": "mdi:omega"
+      },
+      "left_arm_muscle": {
+        "default": "mdi:arm-flex"
+      },
+      "left_arm_fat": {
+        "default": "mdi:water-percent"
+      },
+      "left_arm_fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "impedance_low_left_arm": {
+        "default": "mdi:omega"
+      },
+      "impedance_high_left_arm": {
+        "default": "mdi:omega"
+      },
+      "trunk_muscle": {
+        "default": "mdi:arm-flex"
+      },
+      "trunk_fat": {
+        "default": "mdi:water-percent"
+      },
+      "trunk_fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "impedance_low_trunk": {
+        "default": "mdi:omega"
+      },
+      "impedance_high_trunk": {
+        "default": "mdi:omega"
+      },
+      "right_leg_muscle": {
+        "default": "mdi:arm-flex"
+      },
+      "right_leg_fat": {
+        "default": "mdi:water-percent"
+      },
+      "right_leg_fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "impedance_low_right_leg": {
+        "default": "mdi:omega"
+      },
+      "impedance_high_right_leg": {
+        "default": "mdi:omega"
+      },
+      "left_leg_muscle": {
+        "default": "mdi:arm-flex"
+      },
+      "left_leg_fat": {
+        "default": "mdi:water-percent"
+      },
+      "left_leg_fat_mass": {
+        "default": "mdi:scale-balance"
+      },
+      "impedance_low_left_leg": {
+        "default": "mdi:omega"
+      },
+      "impedance_high_left_leg": {
+        "default": "mdi:omega"
+      }
+    }
+  },
+  "services": {
+    "assign_weigh_in": {
+      "service": "mdi:account-arrow-left"
+    },
+    "discard_weigh_in": {
+      "service": "mdi:delete"
+    }
+  }
+}

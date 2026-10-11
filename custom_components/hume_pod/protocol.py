@@ -41,7 +41,7 @@ def build_user_command(male: bool, age: int, height_cm: float, activity: int) ->
     sex = 0x01 if male else 0x00
     act = min(max(int(activity), 0), 2)
     height = min(max(round(height_cm), 0), 255)
-    age_b = min(max(round(age), 0), 255)
+    age_b = min(max(int(age), 0), 255)
     unit = 0x01
     checksum = (user_id ^ sex ^ act ^ height ^ age_b ^ unit) & 0xFF
     return bytes([0xFE, user_id, sex, act, height, age_b, unit, checksum])

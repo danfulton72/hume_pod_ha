@@ -26,6 +26,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -47,6 +48,7 @@ from .const import (
     POST_IMPEDANCE_GRACE,
     SESSION_TIMEOUT,
     SEX_MALE,
+    SIGNAL_UPDATED,
     STORAGE_VERSION,
     SUBENTRY_PERSON,
 )
@@ -250,6 +252,7 @@ class HumePodScale:
     def _notify(self) -> None:
         for update_cb in list(self._listeners):
             update_cb()
+        async_dispatcher_send(self.hass, SIGNAL_UPDATED)
 
     def _set_status(self, status: str) -> None:
         self.status = status

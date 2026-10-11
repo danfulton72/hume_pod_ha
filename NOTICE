@@ -1,4 +1,8 @@
-Portions of this integration (BLE protocol handling in protocol.py and the
-body-composition equations in bia.py) are derived from Blue2Scale,
+Portions of this integration are derived from Blue2Scale,
 Copyright (c) 2026 Jozef Jarosciak, https://github.com/JozefJarosciak/Blue2Scale.com,
-used under the Blue2Scale Source-Available License 1.0 (see BLUE2SCALE_LICENSE).
+used under the Blue2Scale Source-Available License 1.0 (see BLUE2SCALE_LICENSE):
+
+- BLE protocol handling (custom_components/hume_pod/protocol.py)
+- Body-composition equations (custom_components/hume_pod/bia.py)
+- Dashboard card layout, metric groupings, body silhouettes, segment regions
+  and ratings (custom_components/hume_pod/frontend/hume-pod-card.js)

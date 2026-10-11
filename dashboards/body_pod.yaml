@@ -1,0 +1,76 @@
+# Hume Body Pod dashboard
+#
+# Modelled on the Blue2Scale web app: an overview page, a segmental body map
+# and trend charts, plus the scale's own status.
+#
+# To use: Settings -> Dashboards -> Add dashboard -> New dashboard from scratch,
+# give it a name and icon (e.g. mdi:scale-bathroom), open it, then
+# pencil (Edit) -> three-dot menu -> Raw configuration editor, and paste this file.
+#
+# The custom:hume-pod-card is loaded automatically by the integration; there is
+# no resource to add. With no `person:` set, the card shows a switcher for
+# everyone on the scale. To pin a card to one person, set `person:` to their
+# device (the card's visual editor offers a picker).
+
+title: Body Pod
+views:
+  - title: Overview
+    path: overview
+    icon: mdi:view-dashboard-outline
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:hume-pod-card
+            view: overview
+            show_tabs: false
+            grid_options:
+              columns: full
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Scale
+            icon: mdi:scale-bathroom
+          - type: tile
+            entity: sensor.body_pod_status
+          - type: tile
+            entity: sensor.body_pod_last_weigh_in
+          - type: tile
+            entity: sensor.body_pod_unassigned_weigh_in
+            visibility:
+              - condition: state
+                entity: sensor.body_pod_unassigned_weigh_in
+                state_not: unknown
+
+  - title: Body map
+    path: body-map
+    icon: mdi:human
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:hume-pod-card
+            view: body
+            show_tabs: false
+            grid_options:
+              columns: full
+
+  - title: Trends
+    path: trends
+    icon: mdi:chart-line
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: custom:hume-pod-card
+            view: trends
+            show_tabs: false
+            grid_options:
+              columns: full

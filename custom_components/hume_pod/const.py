@@ -40,3 +40,9 @@ SERVICE_ASSIGN = "assign_weigh_in"
 SERVICE_DISCARD = "discard_weigh_in"
 ATTR_PERSON = "person"
 ATTR_SCALE = "scale"
+
+# Dispatched whenever any scale's data changes (used by the dashboard card feed)
+SIGNAL_UPDATED = f"{DOMAIN}_updated"
+
+FRONTEND_URL_BASE = f"/{DOMAIN}_static"
+CARD_FILENAME = "hume-pod-card.js"

@@ -8,11 +8,14 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .card import async_register_card
+from .const import DOMAIN, SIGNAL_UPDATED
 from .scale import HumePodScale
 from .services import async_setup_services
+from .websocket import async_setup_websocket
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -23,6 +26,8 @@ type HumePodConfigEntry = ConfigEntry[HumePodScale]
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_setup_services(hass)
+    async_setup_websocket(hass)
+    await async_register_card(hass)
     return True
 
 
@@ -38,6 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HumePodConfigEntry) -> b
     entry.async_on_unload(scale.async_start())
     # People (subentries) added/removed or options changed -> rebuild entities.
     entry.async_on_unload(entry.add_update_listener(_async_reload))
+    async_dispatcher_send(hass, SIGNAL_UPDATED)  # tell open dashboards
     return True
 
 
@@ -49,6 +55,8 @@ async def _async_reload(hass: HomeAssistant, entry: HumePodConfigEntry) -> None:
 async def async_unload_entry(hass: HomeAssistant, entry: HumePodConfigEntry) -> bool:
     if unloaded := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         await entry.runtime_data.async_flush()
+        # Once the entry is marked unloaded, refresh open dashboards.
+        hass.loop.call_soon(async_dispatcher_send, hass, SIGNAL_UPDATED)
     return unloaded
 
 

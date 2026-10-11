@@ -99,6 +99,35 @@ automation:
               person: "{{ device_id('sensor.' ~ trigger.id ~ '_weight') }}"
 ```
 
+## Dashboard
+
+The integration ships a **Hume Body Pod card**, modelled on the [Blue2Scale](https://github.com/JozefJarosciak/Blue2Scale.com) web app. It loads automatically: there's no dashboard resource to add.
+
+| Overview | Body map | Trends |
+| --- | --- | --- |
+| ![Overview](docs/card-overview.png) | ![Body map](docs/card-body-map.png) | ![Trends](docs/card-trends.png) |
+
+<sub>Screenshots rendered with sample data.</sub>
+
+- **Overview:** weight, body fat, muscle and water with 30-day change and sparklines; a body-composition donut; key metrics (BMI, visceral fat, BMR, metabolic age, bone mineral); fat, lean and hydration breakdowns.
+- **Body map:** male or female silhouette coloured by segment, switchable between muscle, fat % and fat mass, using Blue2Scale's ratings.
+- **Trends:** charts for weight, body fat, muscle and lean mass, lean vs fat, body water, BMI and metabolic age, plus any metric you pick, over 1W/1M/3M/6M/1Y/ALL, from Home Assistant's long-term statistics. Hover or tap for values.
+- Person switcher, a live "Measuring…" banner while someone is on the scale, and buttons to assign or discard an unassigned weigh-in.
+- Follows your HA theme (light/dark) and unit system (kg/lb). Tap a value for its history.
+
+**Ready-made dashboard:** create a new dashboard (Settings → Dashboards → Add dashboard → New dashboard from scratch), open it, choose Edit → ⋮ → Raw configuration editor, and paste [`dashboards/body_pod.yaml`](dashboards/body_pod.yaml). It has Overview, Body map and Trends pages plus scale status tiles.
+
+**Single card:** add a card and pick *Hume Body Pod* from the list, or:
+
+```yaml
+type: custom:hume-pod-card
+person: <person device>   # optional: omit to switch between everyone
+view: overview            # overview | body | trends
+show_tabs: true
+```
+
+The card shows every metric, even sensors that are disabled by default. Only *trend charts* need the sensor enabled, because they come from recorded statistics.
+
 ## Entities
 
 **Scale device (`Body Pod`)**: status, unassigned weigh-in, last weigh-in, and live weight (disabled by default).

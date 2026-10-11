@@ -2,7 +2,7 @@
 pytest-homeassistant-custom-component==0.13.316
 aiousbwatcher==1.1.1
 bleak==2.1.1
-bleak-retry-connector==4.4.3
+bleak-retry-connector==4.7.1
 bluetooth-adapters==2.1.0
 bluetooth-auto-recovery==1.5.3
 bluetooth-data-tools==1.28.4

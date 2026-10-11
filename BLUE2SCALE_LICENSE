@@ -1,0 +1,87 @@
+Blue2Scale Source-Available License
+Version 1.0, March 2026
+
+Copyright (c) 2026 Jozef Jarosciak. All rights reserved.
+
+TERMS AND CONDITIONS
+
+1. DEFINITIONS
+
+   "Licensed Work" means the Blue2Scale software, including all source
+   code, documentation, and associated files in this repository.
+
+   "Licensor" means Jozef Jarosciak, the copyright holder.
+
+   "Non-Production Use" means use for personal study, testing,
+   development, educational purposes, research, or evaluation —
+   excluding any use that generates revenue, serves paying customers,
+   or operates as a publicly available service (other than the
+   Licensor's own deployment at blue2scale.com).
+
+   "Production Use" means any use that is not Non-Production Use,
+   including but not limited to: deploying the software as a service,
+   incorporating the software into a commercial product, or using the
+   software to serve end users in a business context.
+
+2. GRANT OF RIGHTS
+
+   Subject to the terms of this License, the Licensor grants you a
+   non-exclusive, non-transferable, non-sublicensable, revocable
+   license to:
+
+   (a) View, read, and study the source code;
+   (b) Fork and modify the source code for Non-Production Use only;
+   (c) Run the software locally for Non-Production Use only.
+
+3. RESTRICTIONS
+
+   You may NOT, without prior written permission from the Licensor:
+
+   (a) Use the Licensed Work for any Production Use;
+   (b) Deploy the Licensed Work as a publicly accessible service;
+   (c) Incorporate the Licensed Work, in whole or in part, into any
+       commercial product or service;
+   (d) Sell, sublicense, lease, or otherwise commercially distribute
+       the Licensed Work or any derivative work;
+   (e) Remove or alter this license notice from any copy of the
+       Licensed Work.
+
+4. COMMERCIAL LICENSING
+
+   Production Use, commercial use, or any use not permitted under
+   Section 2 requires a separate commercial license agreement with
+   the Licensor. To initiate a commercial licensing request,
+   open an issue at:
+   https://github.com/JozefJarosciak/blue2scale.com/issues
+
+5. CONTRIBUTIONS
+
+   By submitting a contribution (pull request, patch, or other code)
+   to this repository, you assign all rights, title, and interest in
+   your contribution to the Licensor, and you agree that the Licensor
+   may use, license, sell, or sublicense your contribution without
+   restriction.
+
+6. NO WARRANTY
+
+   THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+   AND NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR
+   ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE
+   LICENSED WORK.
+
+7. TERMINATION
+
+   This License is effective until terminated. Your rights under this
+   License will terminate automatically if you fail to comply with any
+   of its terms. Upon termination, you must destroy all copies of the
+   Licensed Work in your possession.
+
+8. TRANSFER OF RIGHTS
+
+   The Licensor reserves the right to sell, assign, or transfer
+   ownership of the Licensed Work, including all associated
+   intellectual property rights, to any third party. Upon such
+   transfer, the new owner assumes all rights of the Licensor under
+   this License.

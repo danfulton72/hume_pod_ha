@@ -1,0 +1,4 @@
+Portions of this integration (BLE protocol handling in protocol.py and the
+body-composition equations in bia.py) are derived from Blue2Scale,
+Copyright (c) 2026 Jozef Jarosciak, https://github.com/JozefJarosciak/Blue2Scale.com,
+used under the Blue2Scale Source-Available License 1.0 (see BLUE2SCALE_LICENSE).

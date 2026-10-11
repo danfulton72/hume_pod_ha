@@ -1,0 +1,237 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "description": "Wake the Body Pod by tapping it, then pick it from the list.",
+        "data": {
+          "address": "Device"
+        }
+      },
+      "bluetooth_confirm": {
+        "description": "Set up {name}?"
+      },
+      "profile": {
+        "title": "Who is this profile for?",
+        "description": "Body composition is estimated from impedance using this profile. Add the integration again for each extra person (see README).",
+        "data": {
+          "name": "Name",
+          "sex": "Sex",
+          "birthdate": "Date of birth",
+          "height": "Height",
+          "activity": "Activity level"
+        },
+        "data_description": {
+          "sex": "Used by the body-composition equations.",
+          "birthdate": "Age is recalculated at every weigh-in.",
+          "height": "In centimetres.",
+          "activity": "Sent to the scale with the profile."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This Body Pod is already configured.",
+      "no_devices_found": "No Body Pod found. Tap the scale to wake it, make sure a Bluetooth adapter or proxy is in range, and try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Body profile",
+        "data": {
+          "sex": "Sex",
+          "birthdate": "Date of birth",
+          "height": "Height",
+          "activity": "Activity level"
+        },
+        "data_description": {
+          "sex": "Used by the body-composition equations.",
+          "birthdate": "Age is recalculated at every weigh-in.",
+          "height": "In centimetres.",
+          "activity": "Sent to the scale with the profile."
+        }
+      }
+    }
+  },
+  "selector": {
+    "sex": {
+      "options": {
+        "male": "Male",
+        "female": "Female"
+      }
+    },
+    "activity": {
+      "options": {
+        "sedentary": "Sedentary",
+        "moderate": "Moderate",
+        "active": "Active"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "weight": {
+        "name": "Weight"
+      },
+      "bmi": {
+        "name": "BMI"
+      },
+      "body_fat": {
+        "name": "Body fat"
+      },
+      "fat_mass": {
+        "name": "Fat mass"
+      },
+      "subcutaneous_fat_mass": {
+        "name": "Subcutaneous fat mass"
+      },
+      "subcutaneous_fat": {
+        "name": "Subcutaneous fat"
+      },
+      "visceral_fat": {
+        "name": "Visceral fat"
+      },
+      "android_fat": {
+        "name": "Android fat"
+      },
+      "gynoid_fat": {
+        "name": "Gynoid fat"
+      },
+      "android_gynoid_ratio": {
+        "name": "Android/gynoid ratio"
+      },
+      "lean_mass": {
+        "name": "Lean mass"
+      },
+      "lean_mass_percentage": {
+        "name": "Lean mass percentage"
+      },
+      "skeletal_muscle_mass": {
+        "name": "Skeletal muscle mass"
+      },
+      "body_cell_mass": {
+        "name": "Body cell mass"
+      },
+      "body_water": {
+        "name": "Body water"
+      },
+      "total_body_water": {
+        "name": "Total body water"
+      },
+      "extracellular_water": {
+        "name": "Extracellular water"
+      },
+      "intracellular_water": {
+        "name": "Intracellular water"
+      },
+      "bone_mineral": {
+        "name": "Bone mineral"
+      },
+      "mineral_mass": {
+        "name": "Mineral mass"
+      },
+      "skeletal_mass": {
+        "name": "Skeletal mass"
+      },
+      "organ_mass": {
+        "name": "Organ mass"
+      },
+      "bmr": {
+        "name": "Basal metabolic rate"
+      },
+      "metabolic_age": {
+        "name": "Metabolic age"
+      },
+      "live_weight": {
+        "name": "Live weight"
+      },
+      "last_measured": {
+        "name": "Last measured"
+      },
+      "right_arm_muscle": {
+        "name": "Muscle right arm"
+      },
+      "right_arm_fat": {
+        "name": "Fat right arm"
+      },
+      "right_arm_fat_mass": {
+        "name": "Fat mass right arm"
+      },
+      "impedance_low_right_arm": {
+        "name": "Impedance 50 kHz right arm"
+      },
+      "impedance_high_right_arm": {
+        "name": "Impedance 250 kHz right arm"
+      },
+      "left_arm_muscle": {
+        "name": "Muscle left arm"
+      },
+      "left_arm_fat": {
+        "name": "Fat left arm"
+      },
+      "left_arm_fat_mass": {
+        "name": "Fat mass left arm"
+      },
+      "impedance_low_left_arm": {
+        "name": "Impedance 50 kHz left arm"
+      },
+      "impedance_high_left_arm": {
+        "name": "Impedance 250 kHz left arm"
+      },
+      "trunk_muscle": {
+        "name": "Muscle trunk"
+      },
+      "trunk_fat": {
+        "name": "Fat trunk"
+      },
+      "trunk_fat_mass": {
+        "name": "Fat mass trunk"
+      },
+      "impedance_low_trunk": {
+        "name": "Impedance 50 kHz trunk"
+      },
+      "impedance_high_trunk": {
+        "name": "Impedance 250 kHz trunk"
+      },
+      "right_leg_muscle": {
+        "name": "Muscle right leg"
+      },
+      "right_leg_fat": {
+        "name": "Fat right leg"
+      },
+      "right_leg_fat_mass": {
+        "name": "Fat mass right leg"
+      },
+      "impedance_low_right_leg": {
+        "name": "Impedance 50 kHz right leg"
+      },
+      "impedance_high_right_leg": {
+        "name": "Impedance 250 kHz right leg"
+      },
+      "left_leg_muscle": {
+        "name": "Muscle left leg"
+      },
+      "left_leg_fat": {
+        "name": "Fat left leg"
+      },
+      "left_leg_fat_mass": {
+        "name": "Fat mass left leg"
+      },
+      "impedance_low_left_leg": {
+        "name": "Impedance 50 kHz left leg"
+      },
+      "impedance_high_left_leg": {
+        "name": "Impedance 250 kHz left leg"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "idle": "Idle",
+          "connecting": "Connecting",
+          "measuring": "Measuring",
+          "error": "Error"
+        }
+      }
+    }
+  }
+}

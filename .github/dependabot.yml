@@ -1,10 +1,8 @@
 version: 2
 updates:
+  # Python test pins track Home Assistant's own Bluetooth stack, so they are
+  # bumped together with pytest-homeassistant-custom-component by hand.
   - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-  - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly

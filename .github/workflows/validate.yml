@@ -14,7 +14,7 @@ jobs:
     name: Hassfest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: home-assistant/actions/hassfest@master
 
   hacs:
@@ -24,3 +24,7 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # The code derives from Blue2Scale's source-available licence, which
+          # isn't an OSI licence GitHub can identify. Fine for installing as a
+          # custom repository; not eligible for the default HACS store.
+          ignore: license

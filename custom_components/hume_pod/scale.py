@@ -425,6 +425,16 @@ class HumePodScale:
             self.hass.loop.call_soon_threadsafe(first_packet.set)
             was_locked = session.stable_weight_kg is not None
             pkt = session.feed(data)
+            if isinstance(pkt, WeightPacket) and pkt.stable and len(data) >= 8:
+                # Related Lefu scales (e.g. Hume Dara 2) put whole-body impedance in
+                # bytes 1-2 of the locked frame and extra data in 5-7. Record it so a
+                # debug log shows whether this firmware does the same.
+                _LOGGER.debug(
+                    "%s locked frame: impedance field %s, bytes 5-7 %s",
+                    self.address,
+                    bytes(data[1:3]).hex(),
+                    bytes(data[5:8]).hex(),
+                )
             if isinstance(pkt, WeightPacket) and pkt.weight_kg > MIN_WEIGHT_KG:
                 self.live_weight = pkt.weight_kg
                 self.status = (
@@ -435,7 +445,7 @@ class HumePodScale:
                 if not was_locked and session.stable_weight_kg is not None:
                     _LOGGER.debug(
                         "%s weight locked at %.2f kg; waiting for body composition "
-                        "(stay on, barefoot)",
+                        "(stay on, barefoot, holding the hand bar)",
                         self.address,
                         session.stable_weight_kg,
                     )
@@ -500,7 +510,8 @@ class HumePodScale:
             return False
         if not session.has_impedance:
             _LOGGER.debug(
-                "%s: weight %.2f kg without impedance (stepped off early, or not barefoot)",
+                "%s: weight %.2f kg without impedance (stepped off early, not barefoot, "
+                "or the hand bar wasn't held)",
                 self.address,
                 weight,
             )

@@ -11,7 +11,7 @@ Protocol and body-composition maths are based on [Blue2Scale](https://github.com
 
 1. The Body Pod sleeps until you tap or step on it, then advertises over BLE for ~30 seconds.
 2. Home Assistant sees the advertisement, connects, and starts a measurement.
-3. The scale streams weight packets until the weight locks. **Stay on, barefoot, for another ~15 s**: the scale then measures segmental impedance at ~50 kHz and ~250 kHz. The Status sensor and the dashboard card show *Analysing body composition* during this stage; step off once it finishes.
+3. The scale streams weight packets until the weight locks. **Stay on, barefoot, and hold the retractable hand bar with your arms out** until the scale finishes: it then measures segmental impedance (arms, trunk, legs) at ~50 kHz and ~250 kHz. Without the hand bar only weight is recorded. The Status sensor and the dashboard card show *Analysing body composition* during this stage; step off once it finishes.
 4. The integration works out who it was (see below), computes 39 body-composition metrics with that person's profile, and updates their sensors.
 
 Weigh-ins with socks on (or stepping off early) still record **weight** and **BMI**; body-composition sensors keep their previous values.

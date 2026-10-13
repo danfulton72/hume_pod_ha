@@ -10,7 +10,7 @@
  * (latest results) and the recorder's long-term statistics (trends).
  */
 
-const CARD_VERSION = "0.4.0";
+const CARD_VERSION = "0.4.1";
 
 const COLORS = {
   blue: "#3b82f6", amber: "#f59e0b", green: "#22c55e", cyan: "#06b6d4",
@@ -420,7 +420,7 @@ class HumePodCard extends HTMLElement {
     let content;
     if (!person.measured_at) {
       content = `<div class="empty"><ha-icon icon="mdi:scale-bathroom"></ha-icon><p><b>No measurements yet</b></p>
-        <p>Tap the Body Pod to wake it and step on barefoot. ${esc(person.name)}'s results will appear here.</p></div>`;
+        <p>Tap the Body Pod to wake it, step on barefoot and hold the hand bar. ${esc(person.name)}'s results will appear here.</p></div>`;
     } else if (tab === "body") {
       content = this._renderBodyMap(person);
     } else if (tab === "trends") {
@@ -437,10 +437,10 @@ class HumePodCard extends HTMLElement {
     let out = "";
     if (scale.status === "analysing" && scale.live_weight) {
       out += `<div class="banner live"><ha-icon icon="mdi:human-handsdown"></ha-icon>
-        <span>Weight locked at <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay on, barefoot, while body composition is measured…</span></div>`;
+        <span>Weight locked at <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay on, barefoot, holding the hand bar with arms out, while body composition is measured…</span></div>`;
     } else if (scale.status === "measuring" && scale.live_weight) {
       out += `<div class="banner live"><ha-icon icon="mdi:scale-bathroom"></ha-icon>
-        <span>Weighing… <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay still, barefoot, feet on all four pads.</span></div>`;
+        <span>Weighing… <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay still, barefoot, and pull out the hand bar.</span></div>`;
     }
     if (scale.pending) {
       const p = scale.pending;
@@ -495,7 +495,7 @@ class HumePodCard extends HTMLElement {
       ${this._statCard(person, "skeletal_muscle_mass", "Muscle mass", "mdi:arm-flex", "green")}
       ${this._statCard(person, "body_water", "Body water", "mdi:water", "cyan")}</div>`;
     if (!hasComp) {
-      return `${stats}<div class="note">Body composition appears after a barefoot weigh-in with feet on all four pads.</div>${this._summary(person)}`;
+      return `${stats}<div class="note">Body composition needs a barefoot weigh-in holding the hand bar until the scale finishes.</div>${this._summary(person)}`;
     }
 
     // Donut: fat + lean + bone/mineral = total weight
@@ -560,7 +560,7 @@ class HumePodCard extends HTMLElement {
   _renderBodyMap(person) {
     const d = person.data;
     if (d.trunk_muscle === undefined) {
-      return `<div class="empty"><ha-icon icon="mdi:human"></ha-icon><p>No segmental data yet. Weigh in barefoot with feet on all four pads to see the body map.</p></div>`;
+      return `<div class="empty"><ha-icon icon="mdi:human"></ha-icon><p>No segmental data yet. Weigh in barefoot, holding the hand bar, to see the body map.</p></div>`;
     }
     const sex = person.sex === "female" ? "female" : "male";
     const mode = this._segView;

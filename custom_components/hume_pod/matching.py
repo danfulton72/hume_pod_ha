@@ -3,7 +3,7 @@
 Pure Python (no Home Assistant imports) so it can be unit tested directly.
 
 Each person has a reference weight (their last weigh-in, or the approximate
-weight entered at setup) and, once they have had a barefoot weigh-in, a
+weight entered at setup) and, once they have had a full body-composition weigh-in, a
 reference body-fat %. For a new reading we compute every person's body fat
 with *their own* profile and score how far the reading is from their
 references, in units of the configured tolerances:

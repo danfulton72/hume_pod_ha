@@ -361,3 +361,61 @@ async def test_diagnostics_redacted(hass, hass_client, ble):
     text = str(diag)
     assert ADDR not in text and "1974-01-01" not in text and "'Dan'" not in text
     assert diag["scale"]["status"] == "idle"
+
+
+# ---- date of birth entry ----------------------------------------------------
+
+
+def test_parse_birthdate_formats():
+    from datetime import date
+
+    from custom_components.hume_pod.config_flow import parse_birthdate
+
+    today = date(2026, 10, 13)
+    assert parse_birthdate("1974-03-21", today) == "1974-03-21"
+    assert parse_birthdate("21/03/1974", today) == "1974-03-21"  # UK day-first
+    assert parse_birthdate("21.3.1974", today) == "1974-03-21"
+    assert parse_birthdate(" 1-1-1990 ", today) == "1990-01-01"
+    for bad in ("", None, "31/02/1990", "1974", "next tuesday", "2030-01-01", "1890-01-01"):
+        assert parse_birthdate(bad, today) is None, bad
+
+
+async def test_add_person_typed_uk_date_and_invalid_date(hass, ble):
+    entry = await setup_scale(hass, [("Dan", DAN)])
+    r = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_PERSON), context={"source": config_entries.SOURCE_USER}
+    )
+    r = await hass.config_entries.subentries.async_configure(
+        r["flow_id"], {CONF_NAME: "Sam", **SAM, "birthdate": "not a date"}
+    )
+    assert r["errors"] == {"birthdate": "invalid_birthdate"}
+    r = await hass.config_entries.subentries.async_configure(
+        r["flow_id"], {CONF_NAME: "Sam", **SAM, "birthdate": "15/06/1990"}
+    )
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    sam = next(s for s in entry.subentries.values() if s.title == "Sam")
+    assert sam.data["birthdate"] == "1990-06-15"
+
+
+async def test_first_person_invalid_date_shows_error(hass):
+    info = MagicMock(
+        address=ADDR, rssi=-60, service_uuids=[], manufacturer_data={}, service_data={}
+    )
+    info.name = "Body Pod 2"
+    with patch("custom_components.hume_pod.async_setup_entry", return_value=True):
+        r = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_BLUETOOTH}, data=info
+        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
+        r = await hass.config_entries.flow.async_configure(
+            r["flow_id"], {CONF_NAME: "Dan", **DAN, "birthdate": "2099-01-01"}
+        )
+        assert r["type"] is FlowResultType.FORM and r["errors"] == {
+            "birthdate": "invalid_birthdate"
+        }
+        r = await hass.config_entries.flow.async_configure(
+            r["flow_id"], {CONF_NAME: "Dan", **DAN, "birthdate": "01/01/1974"}
+        )
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    (sub,) = r["result"].subentries.values()
+    assert sub.data["birthdate"] == "1974-01-01"

@@ -6,6 +6,8 @@ subentry, added or edited from the integration page.
 
 from __future__ import annotations
 
+from datetime import date
+import re
 from typing import Any
 
 from homeassistant.components.bluetooth import (
@@ -24,6 +26,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.util import dt as dt_util
 import voluptuous as vol
 
 from .const import (
@@ -59,7 +62,11 @@ PERSON_SCHEMA = vol.Schema(
         vol.Required(CONF_SEX): selector.SelectSelector(
             selector.SelectSelectorConfig(options=[SEX_MALE, SEX_FEMALE], translation_key=CONF_SEX)
         ),
-        vol.Required(CONF_BIRTHDATE): selector.DateSelector(),
+        # A typed date field: the browser's own date input lets you type the
+        # year (or pick it on a phone) instead of paging back month by month.
+        vol.Required(CONF_BIRTHDATE): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.DATE)
+        ),
         vol.Required(CONF_HEIGHT): selector.NumberSelector(
             selector.NumberSelectorConfig(
                 min=100,
@@ -85,9 +92,41 @@ PERSON_SCHEMA = vol.Schema(
 )
 
 
-def _split_person(user_input: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+_DMY = re.compile(r"^\s*(\d{1,2})[/.\-\s](\d{1,2})[/.\-\s](\d{4})\s*$")
+
+
+def parse_birthdate(value: Any, today: date | None = None) -> str | None:
+    """Return an ISO date for 1974-03-21 or 21/03/1974 style input, else None.
+
+    Browsers without a native date input fall back to free text, so day-first
+    dates (as written in the UK and most of the world) are accepted too.
+    Implausible dates (future, or an age outside 5-120) are rejected.
+    """
+    text = str(value or "").strip()
+    parsed = dt_util.parse_date(text)
+    if parsed is None and (m := _DMY.match(text)):
+        day, month, year = (int(g) for g in m.groups())
+        try:
+            parsed = date(year, month, day)
+        except ValueError:
+            return None
+    if parsed is None:
+        return None
+    today = today or dt_util.now().date()
+    age = today.year - parsed.year - ((today.month, today.day) < (parsed.month, parsed.day))
+    if not 5 <= age <= 120:
+        return None
+    return parsed.isoformat()
+
+
+def _split_person(user_input: dict[str, Any], errors: dict[str, str]) -> tuple[str, dict[str, Any]]:
+    """Separate the name from the profile and normalise/validate the birthdate."""
     data = dict(user_input)
     name = data.pop(CONF_NAME).strip()
+    if (birthdate := parse_birthdate(data.get(CONF_BIRTHDATE))) is None:
+        errors[CONF_BIRTHDATE] = "invalid_birthdate"
+    else:
+        data[CONF_BIRTHDATE] = birthdate
     return name, data
 
 
@@ -167,8 +206,10 @@ class HumePodConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_person(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """First person; more can be added afterwards from the integration page."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            name, data = _split_person(user_input)
+            name, data = _split_person(user_input, errors)
+        if user_input is not None and not errors:
             return self.async_create_entry(
                 title="Body Pod",
                 data={CONF_ADDRESS: self._address},
@@ -185,7 +226,11 @@ class HumePodConfigFlow(ConfigFlow, domain=DOMAIN):
                     }
                 ],
             )
-        return self.async_show_form(step_id="person", data_schema=PERSON_SCHEMA)
+        return self.async_show_form(
+            step_id="person",
+            data_schema=self.add_suggested_values_to_schema(PERSON_SCHEMA, user_input or {}),
+            errors=errors,
+        )
 
 
 class PersonSubentryFlow(ConfigSubentryFlow):
@@ -203,10 +248,10 @@ class PersonSubentryFlow(ConfigSubentryFlow):
             return self.async_abort(reason="entry_not_loaded")
         errors: dict[str, str] = {}
         if user_input is not None:
-            name, data = _split_person(user_input)
+            name, data = _split_person(user_input, errors)
             if self._name_taken(name):
                 errors[CONF_NAME] = "name_taken"
-            else:
+            if not errors:
                 return self.async_create_entry(title=name, data=data)
         return self.async_show_form(
             step_id="user",
@@ -220,10 +265,10 @@ class PersonSubentryFlow(ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            name, data = _split_person(user_input)
+            name, data = _split_person(user_input, errors)
             if self._name_taken(name, exclude=subentry.subentry_id):
                 errors[CONF_NAME] = "name_taken"
-            else:
+            if not errors:
                 return self.async_update_and_abort(
                     self._get_entry(), subentry, title=name, data=data
                 )

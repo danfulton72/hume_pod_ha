@@ -25,7 +25,7 @@
         "data_description": {
           "name": "Used for this person's device and entity names.",
           "sex": "Used by the body-composition equations.",
-          "birthdate": "Age is recalculated at every weigh-in.",
+          "birthdate": "Type it in (you can type the year directly), or use the picker. Age is recalculated at every weigh-in.",
           "height": "In centimetres.",
           "activity": "Sent to the scale with the profile.",
           "expected_weight": "Optional. Helps recognise this person's first weigh-in when several people share the scale."
@@ -37,6 +37,9 @@
       "no_devices_found": "No Body Pod found. Tap the scale to wake it, make sure a Bluetooth adapter or proxy is in range, and try again.",
       "not_supported": "This Bluetooth device isn't a Hume Body Pod.",
       "not_connectable": "A Body Pod was found, but only by a Bluetooth proxy or adapter that can't make connections. Enable active connections on your ESPHome Bluetooth proxy (bluetooth_proxy: active: true), or move an adapter that can connect within range."
+    },
+    "error": {
+      "invalid_birthdate": "Enter a valid date of birth, e.g. 21/03/1974 or 1974-03-21."
     }
   },
   "config_subentries": {
@@ -59,7 +62,7 @@
           "data_description": {
             "name": "Used for this person's device and entity names.",
             "sex": "Used by the body-composition equations.",
-            "birthdate": "Age is recalculated at every weigh-in.",
+            "birthdate": "Type it in (you can type the year directly), or use the picker. Age is recalculated at every weigh-in.",
             "height": "In centimetres.",
             "activity": "Sent to the scale with the profile.",
             "expected_weight": "Optional. Helps recognise this person's first weigh-in when several people share the scale."
@@ -78,7 +81,7 @@
           "data_description": {
             "name": "Used for this person's device and entity names.",
             "sex": "Used by the body-composition equations.",
-            "birthdate": "Age is recalculated at every weigh-in.",
+            "birthdate": "Type it in (you can type the year directly), or use the picker. Age is recalculated at every weigh-in.",
             "height": "In centimetres.",
             "activity": "Sent to the scale with the profile.",
             "expected_weight": "Optional. Helps recognise this person's first weigh-in when several people share the scale."
@@ -86,7 +89,8 @@
         }
       },
       "error": {
-        "name_taken": "Someone with this name is already set up on this scale."
+        "name_taken": "Someone with this name is already set up on this scale.",
+        "invalid_birthdate": "Enter a valid date of birth, e.g. 21/03/1974 or 1974-03-21."
       },
       "abort": {
         "entry_not_loaded": "The scale must be loaded before people can be added.",

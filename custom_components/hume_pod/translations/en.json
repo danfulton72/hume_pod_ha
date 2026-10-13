@@ -315,7 +315,8 @@
           "idle": "Idle",
           "connecting": "Connecting",
           "measuring": "Measuring",
-          "error": "Error"
+          "error": "Error",
+          "analysing": "Analysing body composition"
         },
         "state_attributes": {
           "last_error": {

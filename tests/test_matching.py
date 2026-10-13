@@ -64,3 +64,22 @@ def test_no_people():
 def test_tolerance_option_respected():
     assert run(84.0, [C("dan", 80.0)], wt=3.0).person_id is None
     assert run(84.0, [C("dan", 80.0)], wt=5.0).person_id == "dan"
+
+
+def test_single_person_estimate_far_off_still_assigned():
+    r = run(63.5, [C("dan", 75.0, ref_is_estimate=True)])
+    assert (r.person_id, r.reason) == ("dan", m.REASON_ONLY_NEW_PERSON)
+    assert r.distances["dan"] > 1  # reported for diagnostics
+
+
+def test_estimates_get_wider_tolerance():
+    # 6 kg from the estimate is within 3x3 kg; still beats a measured person 10 kg away
+    cands = [C("dan", 69.5, ref_is_estimate=True), C("sam", 53.5)]
+    r = run(63.5, cands)
+    assert (r.person_id, r.reason) == ("dan", m.REASON_MATCHED)
+
+
+def test_measured_single_person_still_rejects_guests():
+    r = run(63.5, [C("dan", 75.0)])
+    assert (r.person_id, r.reason) == (None, m.REASON_NO_MATCH)
+    assert r.distances == {"dan": round(11.5 / 3, 3)}

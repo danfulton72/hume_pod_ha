@@ -11,7 +11,7 @@ Protocol and body-composition maths are based on [Blue2Scale](https://github.com
 
 1. The Body Pod sleeps until you tap or step on it, then advertises over BLE for ~30 seconds.
 2. Home Assistant sees the advertisement, connects, and starts a measurement.
-3. The scale streams weight packets and, once you've stood still barefoot for ~10–15 s, segmental impedance at ~50 kHz and ~250 kHz.
+3. The scale streams weight packets until the weight locks. **Stay on, barefoot, for another ~15 s**: the scale then measures segmental impedance at ~50 kHz and ~250 kHz. The Status sensor and the dashboard card show *Analysing body composition* during this stage; step off once it finishes.
 4. The integration works out who it was (see below), computes 39 body-composition metrics with that person's profile, and updates their sensors.
 
 Weigh-ins with socks on (or stepping off early) still record **weight** and **BMI**; body-composition sensors keep their previous values.
@@ -39,7 +39,8 @@ For every weigh-in the integration compares the reading with each person's previ
 - **Weight**: a person is only considered if the reading is within the *weight tolerance* (default 3 kg) of their last weight.
 - **Body fat**: when the reading includes impedance, body fat is calculated with *each candidate's own profile* and compared with their last body fat, scaled by the *body fat tolerance* (default 4 percentage points). This separates people of similar weight.
 - The closest person wins. If two people are too close to call, or nobody is within tolerance (a guest, or a big change after a holiday), the reading is kept as an **unassigned weigh-in** instead of polluting anyone's history.
-- If someone has no history yet and nobody else matches, their first weigh-in goes to them.
+- An **approximate weight** entered at setup is treated as a rough guess: it gets three times the weight tolerance until that person's first real weigh-in.
+- If only one person is set up and they haven't weighed in yet, the weigh-in goes to them whatever their approximate weight. Likewise, if someone has no history or estimate and nobody else matches, it goes to them.
 
 Adjust both tolerances under the integration's **Configure** button.
 
@@ -130,7 +131,7 @@ The card shows every metric, even sensors that are disabled by default. Only *tr
 
 ## Entities
 
-**Scale device (`Body Pod`)**: status, unassigned weigh-in, last weigh-in, and live weight (disabled by default).
+**Scale device (`Body Pod`)**: status, unassigned weigh-in, last weigh-in, battery, signal strength, and live weight (disabled by default). The device page also shows the scale's model, firmware and hardware version once it has connected.
 
 **One device per person**, linked to the scale:
 

@@ -26,6 +26,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -71,8 +72,18 @@ _LOGGER = logging.getLogger(__name__)
 STATUS_IDLE = "idle"
 STATUS_CONNECTING = "connecting"
 STATUS_MEASURING = "measuring"
+STATUS_ANALYSING = "analysing"  # weight locked, waiting for body composition
 STATUS_ERROR = "error"
-STATUSES = [STATUS_IDLE, STATUS_CONNECTING, STATUS_MEASURING, STATUS_ERROR]
+STATUSES = [STATUS_IDLE, STATUS_CONNECTING, STATUS_MEASURING, STATUS_ANALYSING, STATUS_ERROR]
+
+# Standard GATT characteristics read once per session for diagnostics.
+CHAR_BATTERY = "00002a19-0000-1000-8000-00805f9b34fb"
+DEVICE_INFO_CHARS = {
+    "model": "00002a24-0000-1000-8000-00805f9b34fb",
+    "firmware": "00002a26-0000-1000-8000-00805f9b34fb",
+    "hardware": "00002a27-0000-1000-8000-00805f9b34fb",
+    "manufacturer": "00002a29-0000-1000-8000-00805f9b34fb",
+}
 
 REASON_MANUAL = "manual"
 
@@ -179,6 +190,8 @@ class HumePodScale:
         self.via: str | None = None
         self.last_error: str | None = None
         self.last_attempt: datetime | None = None
+        self.battery: int | None = None
+        self.device_info: dict[str, str] = {}
         self._rssi_notified = 0.0
         self._last_warning = -WARNING_INTERVAL
         self._last_mfr: dict[int, str] | None = None
@@ -195,12 +208,16 @@ class HumePodScale:
         if raw_pending := stored.get("pending"):
             self.pending = PendingWeighIn.from_dict(raw_pending)
         self.last_weigh_in = _dt(stored.get("last_weigh_in"))
+        self.battery = stored.get("battery")
+        self.device_info = dict(stored.get("device_info") or {})
 
     def _data_to_save(self) -> dict[str, Any]:
         return {
             "people": {sid: p.as_dict() for sid, p in self.people.items()},
             "pending": self.pending.as_dict() if self.pending else None,
             "last_weigh_in": _iso(self.last_weigh_in),
+            "battery": self.battery,
+            "device_info": self.device_info,
         }
 
     def _save(self) -> None:
@@ -399,17 +416,34 @@ class HumePodScale:
             "%s connected in %.1fs via %s", self.address, time.monotonic() - started, self.via
         )
 
+        packets = 0
+
         def _on_notify(char: Any, data: bytearray) -> None:
+            nonlocal packets
+            packets += 1
             _LOGGER.debug("%s notify %s: %s", self.address, _short_uuid(char), bytes(data).hex())
             self.hass.loop.call_soon_threadsafe(first_packet.set)
+            was_locked = session.stable_weight_kg is not None
             pkt = session.feed(data)
             if isinstance(pkt, WeightPacket) and pkt.weight_kg > MIN_WEIGHT_KG:
                 self.live_weight = pkt.weight_kg
-                self.status = STATUS_MEASURING
+                self.status = (
+                    STATUS_ANALYSING
+                    if session.stable_weight_kg is not None and not session.has_impedance
+                    else STATUS_MEASURING
+                )
+                if not was_locked and session.stable_weight_kg is not None:
+                    _LOGGER.debug(
+                        "%s weight locked at %.2f kg; waiting for body composition "
+                        "(stay on, barefoot)",
+                        self.address,
+                        session.stable_weight_kg,
+                    )
                 self.hass.loop.call_soon_threadsafe(self._notify)
             if session.has_impedance:
                 self.hass.loop.call_soon_threadsafe(impedance_done.set)
 
+        info_task: asyncio.Task[None] | None = None
         try:
             if not self._check_services(client):
                 return False
@@ -422,6 +456,9 @@ class HumePodScale:
             await client.write_gatt_char(CHAR_WRITE_UUID, command, response=with_response)
             _LOGGER.debug("%s sent profile %s", self.address, command.hex())
             self._set_status(STATUS_MEASURING)
+            info_task = self.hass.async_create_task(
+                self._async_read_device_info(client), eager_start=False
+            )
 
             await _wait_first((first_packet, disconnected), NO_DATA_TIMEOUT)
             if not first_packet.is_set():
@@ -437,8 +474,22 @@ class HumePodScale:
                 # Let the trailing DF/CF packets arrive before hanging up.
                 await _wait_first((disconnected,), POST_IMPEDANCE_GRACE)
         finally:
+            if info_task is not None and not info_task.done():
+                info_task.cancel()
             with contextlib.suppress(BleakError, TimeoutError):
                 await client.disconnect()
+
+        _LOGGER.debug(
+            "%s session ended (%s) after %.0fs: %d packets, weight %s kg (locked: %s), "
+            "impedance: %s",
+            self.address,
+            "scale disconnected" if disconnected.is_set() else "timeout",
+            time.monotonic() - started,
+            packets,
+            session.weight_kg,
+            session.stable_weight_kg is not None,
+            "yes" if session.has_impedance else "no",
+        )
 
         if (weight := session.weight_kg) is None:
             self._fail(
@@ -458,6 +509,41 @@ class HumePodScale:
             weight, session.impedance.get(0), session.impedance.get(1), dt_util.utcnow()
         )
         return True
+
+    async def _async_read_device_info(self, client: BleakClientWithServiceCache) -> None:
+        """Read battery level and model/firmware; best effort, never fatal."""
+        try:
+            async with asyncio.timeout(15):
+                if client.services.get_characteristic(CHAR_BATTERY):
+                    raw = await client.read_gatt_char(CHAR_BATTERY)
+                    if raw:
+                        self.battery = int(raw[0])
+                info: dict[str, str] = {}
+                for key, uuid in DEVICE_INFO_CHARS.items():
+                    if client.services.get_characteristic(uuid):
+                        raw = await client.read_gatt_char(uuid)
+                        if text := bytes(raw).decode(errors="ignore").strip("\x00 ").strip():
+                            info[key] = text
+        except (BleakError, TimeoutError, ValueError) as err:
+            _LOGGER.debug("%s couldn't read device info: %s", self.address, err)
+            return
+        _LOGGER.debug("%s battery %s%%, device info %s", self.address, self.battery, info)
+        if info and info != self.device_info:
+            self.device_info = info
+            self._update_device_registry()
+        self._save()
+        self._notify()
+
+    @callback
+    def _update_device_registry(self) -> None:
+        dev_reg = dr.async_get(self.hass)
+        if device := dev_reg.async_get_device({(DOMAIN, self.entry.entry_id)}):
+            dev_reg.async_update_device(
+                device.id,
+                model_id=self.device_info.get("model"),
+                sw_version=self.device_info.get("firmware"),
+                hw_version=self.device_info.get("hardware"),
+            )
 
     def _check_services(self, client: BleakClientWithServiceCache) -> bool:
         """Make sure the scale exposes the expected GATT layout; describe it if not."""
@@ -498,7 +584,8 @@ class HumePodScale:
         candidates = []
         for sid, sub in self.person_subentries.items():
             state = self.people.setdefault(sid, PersonState())
-            ref_weight = state.data.get("weight") or sub.data.get(CONF_EXPECTED_WEIGHT)
+            measured = state.data.get("weight")
+            ref_weight = measured or sub.data.get(CONF_EXPECTED_WEIGHT)
             fat_now = (
                 self._composition(sub.data, low, high, weight, measured_at)["body_fat"]
                 if low and high
@@ -510,6 +597,7 @@ class HumePodScale:
                     ref_weight=float(ref_weight) if ref_weight else None,
                     ref_fat=state.data.get("body_fat") if state.composition_at else None,
                     fat_now=fat_now,
+                    ref_is_estimate=measured is None and ref_weight is not None,
                 )
             )
 
@@ -627,6 +715,8 @@ class HumePodScale:
             "last_error": self.last_error,
             "last_attempt": _iso(self.last_attempt),
             "last_manufacturer_data": self._last_mfr,
+            "battery": self.battery,
+            "device_info": self.device_info,
             "options": dict(self.entry.options),
             "people": {
                 sid: {"has_history": bool(p.measured_at), **p.as_dict()}

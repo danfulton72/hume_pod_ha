@@ -10,7 +10,7 @@
  * (latest results) and the recorder's long-term statistics (trends).
  */
 
-const CARD_VERSION = "0.3.3";
+const CARD_VERSION = "0.4.0";
 
 const COLORS = {
   blue: "#3b82f6", amber: "#f59e0b", green: "#22c55e", cyan: "#06b6d4",
@@ -435,9 +435,12 @@ class HumePodCard extends HTMLElement {
   _renderBanners(person, people) {
     const scale = person.scale;
     let out = "";
-    if (scale.status === "measuring" && scale.live_weight) {
+    if (scale.status === "analysing" && scale.live_weight) {
+      out += `<div class="banner live"><ha-icon icon="mdi:human-handsdown"></ha-icon>
+        <span>Weight locked at <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay on, barefoot, while body composition is measured…</span></div>`;
+    } else if (scale.status === "measuring" && scale.live_weight) {
       out += `<div class="banner live"><ha-icon icon="mdi:scale-bathroom"></ha-icon>
-        <span>Measuring… <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay still, barefoot on all four pads.</span></div>`;
+        <span>Weighing… <b>${this._fmt(this._conv("weight", scale.live_weight), this._decimals("weight"))} ${this._massUnit}</b>. Stay still, barefoot, feet on all four pads.</span></div>`;
     }
     if (scale.pending) {
       const p = scale.pending;

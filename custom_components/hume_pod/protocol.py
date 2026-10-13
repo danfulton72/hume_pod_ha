@@ -114,8 +114,11 @@ Packet = WeightPacket | ImpedancePacket | ExtendedPacket
 def decode_packet(data: bytes | bytearray) -> Packet | None:
     """Decode one notification. Returns None for unknown/short packets.
 
-    Note: the trailing byte is documented as an XOR checksum, but captured
-    sample packets don't satisfy plain XOR, so it is deliberately not validated.
+    Weight lock is signalled two ways depending on firmware: Blue2Scale's
+    units set bit 7 of byte 2, while the Body Pod 2 leaves byte 2 at 0 and
+    clears byte 9 (01 while settling -> 00 when locked), e.g.
+    ``cf0000ce18000000010119`` (63.50 kg, settling) then
+    ``cf0000ce18000000010018`` (63.50 kg, locked).
     """
     data = bytes(data)
     if not data:
@@ -123,7 +126,9 @@ def decode_packet(data: bytes | bytearray) -> Packet | None:
     header = data[0]
 
     if header == HEADER_WEIGHT and len(data) >= 5:
-        return WeightPacket(weight_kg=_le16(data, 3) / 100, stable=bool(data[2] & 0x80))
+        locked_flag = bool(data[2] & 0x80)
+        locked_pod2 = len(data) == 11 and data[9] == 0x00
+        return WeightPacket(weight_kg=_le16(data, 3) / 100, stable=locked_flag or locked_pod2)
 
     if header == HEADER_IMPEDANCE and len(data) >= 12:
         values = tuple(_le16(data, 2 + i * 2) / 10 for i in range(5))

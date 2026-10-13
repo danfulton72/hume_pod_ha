@@ -97,3 +97,14 @@ def test_other_fff0_devices_rejected():
     assert not protocol.looks_like_body_pod(
         None, "6E7A9A3C-0000-4000-8000-000000000000", POD2_UUIDS, POD2_MFR
     )
+
+
+def test_body_pod2_lock_flag():
+    settling = protocol.decode_packet(bytes.fromhex("cf0000ce18000000010119"))
+    locked = protocol.decode_packet(bytes.fromhex("cf0000ce18000000010018"))
+    assert settling == protocol.WeightPacket(63.5, False)
+    assert locked == protocol.WeightPacket(63.5, True)
+    session = protocol.MeasurementSession()
+    for h in ("cf0000ab1800000001017c", "cf0000ce18000000010119", "cf0000ce18000000010018"):
+        session.feed(bytes.fromhex(h))
+    assert session.stable_weight_kg == 63.5 and session.weight_kg == 63.5

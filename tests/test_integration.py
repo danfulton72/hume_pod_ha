@@ -93,13 +93,63 @@ class FakeServices:
         return None
 
 
+# Layout reported by a real Body Pod 2
 BODY_POD_LAYOUT = {
+    "180a": {
+        "2a24": ["read"],
+        "2a25": ["read"],
+        "2a26": ["read"],
+        "2a27": ["read"],
+        "2a29": ["read"],
+    },
+    "180f": {"2a19": ["read", "notify"]},
     "fff0": {
         "fff1": ["write"],
-        "fff2": ["read", "write", "notify"],
+        "fff2": ["read", "write-without-response", "write", "notify"],
         "fff4": ["notify"],
-    }
+    },
 }
+
+GATT_VALUES = {
+    "2a19": bytes([87]),
+    "2a24": b"Body Pod 2\x00",
+    "2a26": b"002.000.004.000",
+    "2a27": b"V1",
+    "2a29": b"Lefu",
+}
+
+# The real Body Pod 2 weigh-in from a user's debug log (19:30, 13 Oct 2026):
+# weight settles to 63.50 kg, byte 9 drops to 00 when locked, no impedance.
+REAL_POD2_PACKETS = [
+    bytes.fromhex(h)
+    for h in [
+        "cf0000ab1800000001017c",
+        "cf0000ab1800000001017c",
+        "cf0000e718000000010130",
+        "cf00002e180000000101f9",
+        "cf00009218000000010145",
+        "cf00009c1800000001014b",
+        "cf0000a618000000010171",
+        "cf0000a618000000010171",
+        "cf0000a118000000010176",
+        "cf0000a118000000010176",
+        "cf0000a118000000010176",
+        "cf0000ab1800000001017c",
+        "cf0000b018000000010167",
+        "cf0000b018000000010167",
+        "cf0000b518000000010162",
+        "cf0000ba1800000001016d",
+        "cf0000bf18000000010168",
+        "cf0000c418000000010113",
+        "cf0000c418000000010113",
+        "cf0000c91800000001011e",
+        "cf0000c91800000001011e",
+        "cf0000c91800000001011e",
+        "cf0000ce18000000010119",
+        "cf0000ce18000000010119",
+        "cf0000ce18000000010018",
+    ]
+]
 
 
 class FakeClient:
@@ -126,6 +176,9 @@ class FakeClient:
         await asyncio.sleep(0)
         if self.disconnect_after:
             self.disconnect_cb(self)
+
+    async def read_gatt_char(self, uuid):
+        return GATT_VALUES.get(uuid[4:8], b"")
 
     async def disconnect(self):
         pass
@@ -381,7 +434,7 @@ async def test_guest_unassigned_then_assigned(hass, ble):
 
 
 async def test_discard(hass, ble):
-    entry = await setup_scale(hass, [("Dan", DAN)])
+    entry = await setup_scale(hass, [("Dan", DAN), ("Sam", SAM)])
     await step_on(hass, ble, weigh_in(130.0))
     assert state(hass, "sensor.body_pod_unassigned_weigh_in") == "130.0"
     scale_dev = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
@@ -522,3 +575,38 @@ async def test_write_without_response_when_required(hass, ble):
     assert hass.states.get("sensor.dan_weight").state == "93.05"
     st = hass.states.get("sensor.body_pod_status")
     assert st.state == "idle" and st.attributes["last_error"] is None
+
+
+# ---- real Body Pod 2 behaviour --------------------------------------------------
+
+
+async def test_real_pod2_weigh_in_replay(hass, ble):
+    """Single person whose setup estimate was well off still gets the reading."""
+    entry = await setup_scale(hass, [("Dan", {**DAN, "expected_weight": 75.0})])
+    statuses = []
+    hass.bus.async_listen(
+        "state_changed",
+        lambda ev: (
+            statuses.append(ev.data["new_state"].state)
+            if ev.data["entity_id"] == "sensor.body_pod_status" and ev.data["new_state"]
+            else None
+        ),
+    )
+    events = []
+    hass.bus.async_listen(EVENT_MEASUREMENT, events.append)
+
+    await step_on(hass, ble, REAL_POD2_PACKETS)
+
+    assert hass.states.get("sensor.dan_weight").state == "63.5"
+    assert events[-1].data["person"] == "Dan"
+    assert events[-1].data["match_reason"] == "only_new_person"
+    assert events[-1].data["composition"] is False
+    assert "analysing" in statuses  # weight-locked stage shown while waiting
+    assert hass.states.get("sensor.body_pod_status").state == "idle"
+
+    # Battery and device info read from the standard GATT services
+    assert hass.states.get("sensor.body_pod_battery").state == "87"
+    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    assert device.sw_version == "002.000.004.000"
+    assert device.model_id == "Body Pod 2"
+    assert device.hw_version == "V1"

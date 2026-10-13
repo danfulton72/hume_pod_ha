@@ -90,7 +90,8 @@
         "state": {
           "connecting": "mdi:bluetooth-connect",
           "measuring": "mdi:bluetooth-audio",
-          "error": "mdi:bluetooth-off"
+          "error": "mdi:bluetooth-off",
+          "analysing": "mdi:human-handsdown"
         }
       },
       "right_arm_muscle": {

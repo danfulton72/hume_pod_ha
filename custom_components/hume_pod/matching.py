@@ -23,6 +23,10 @@ import math
 # How much closer (in tolerance units) the best match must be than the runner-up.
 AMBIGUITY_MARGIN = 0.25
 
+# An "approximate weight" typed in at setup is a rough guess, not a measurement,
+# so it is allowed this many times the normal weight tolerance.
+ESTIMATE_TOLERANCE_FACTOR = 3
+
 REASON_MATCHED = "matched"
 REASON_ONLY_NEW_PERSON = "only_new_person"
 REASON_NO_MATCH = "no_match"
@@ -35,6 +39,8 @@ class Candidate:
     person_id: str
     ref_weight: float | None
     ref_fat: float | None = None
+    # True when ref_weight is the approximate weight from setup, not a weigh-in
+    ref_is_estimate: bool = False
     # Body fat % for *this* reading computed with this person's profile
     # (None when the reading had no usable impedance).
     fat_now: float | None = None
@@ -44,7 +50,8 @@ class Candidate:
 class MatchResult:
     person_id: str | None
     reason: str
-    # person_id -> distance in tolerance units (sqrt of score), for diagnostics
+    # person_id -> distance in tolerance units (sqrt of score); <= 1 is a
+    # plausible match. Includes people who were too far away, for diagnostics.
     distances: dict[str, float]
 
 
@@ -58,26 +65,33 @@ def match_person(
         return MatchResult(None, REASON_NO_PEOPLE, {})
 
     distances: dict[str, float] = {}
+    eligible: dict[str, float] = {}
     for cand in candidates:
         if cand.ref_weight is None:
             continue
-        dw = (weight - cand.ref_weight) / weight_tolerance
-        if abs(dw) > 1:
-            continue
+        tolerance = weight_tolerance * (ESTIMATE_TOLERANCE_FACTOR if cand.ref_is_estimate else 1)
+        dw = (weight - cand.ref_weight) / tolerance
         score = dw * dw
         if cand.ref_fat is not None and cand.fat_now is not None:
             df = (cand.fat_now - cand.ref_fat) / fat_tolerance
             score += df * df
         distances[cand.person_id] = round(math.sqrt(score), 3)
+        if abs(dw) <= 1:
+            eligible[cand.person_id] = distances[cand.person_id]
 
-    if distances:
-        ranked = sorted(distances.items(), key=lambda kv: kv[1])
+    if eligible:
+        ranked = sorted(eligible.items(), key=lambda kv: kv[1])
         best_id, best = ranked[0]
         if len(ranked) > 1 and ranked[1][1] - best < AMBIGUITY_MARGIN:
             return MatchResult(None, REASON_AMBIGUOUS, distances)
         return MatchResult(best_id, REASON_MATCHED, distances)
 
-    # Nobody with history is close. If exactly one person has no history yet,
+    # Only one person set up and they've never weighed in: it must be them,
+    # whatever approximate weight they guessed at setup.
+    if len(candidates) == 1 and (candidates[0].ref_weight is None or candidates[0].ref_is_estimate):
+        return MatchResult(candidates[0].person_id, REASON_ONLY_NEW_PERSON, distances)
+
+    # Nobody is close. If exactly one person has no reference at all yet,
     # this is most likely their first weigh-in.
     new_people = [c.person_id for c in candidates if c.ref_weight is None]
     if len(new_people) == 1:

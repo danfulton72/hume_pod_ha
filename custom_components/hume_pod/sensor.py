@@ -158,6 +158,14 @@ SCALE_SENSORS: tuple[ScaleSensorDescription, ...] = (
         },
     ),
     ScaleSensorDescription(
+        key="battery",
+        device_class=SensorDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda s: s.battery,
+    ),
+    ScaleSensorDescription(
         key="signal_strength",
         translation_key="signal_strength",
         device_class=SensorDeviceClass.SIGNAL_STRENGTH,

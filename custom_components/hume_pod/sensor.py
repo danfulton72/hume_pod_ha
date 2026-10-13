@@ -18,7 +18,13 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfMass, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+    EntityCategory,
+    UnitOfMass,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -145,6 +151,21 @@ SCALE_SENSORS: tuple[ScaleSensorDescription, ...] = (
         options=STATUSES,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda s: s.status,
+        attrs_fn=lambda s: {
+            "last_error": s.last_error,
+            "last_attempt": s.last_attempt.isoformat() if s.last_attempt else None,
+            "via": s.via,
+        },
+    ),
+    ScaleSensorDescription(
+        key="signal_strength",
+        translation_key="signal_strength",
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+        native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda s: s.rssi,
+        attrs_fn=lambda s: {"via": s.via},
     ),
     ScaleSensorDescription(
         key="live_weight",

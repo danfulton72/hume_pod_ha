@@ -316,6 +316,25 @@
           "connecting": "Connecting",
           "measuring": "Measuring",
           "error": "Error"
+        },
+        "state_attributes": {
+          "last_error": {
+            "name": "Last error"
+          },
+          "last_attempt": {
+            "name": "Last attempt"
+          },
+          "via": {
+            "name": "Via"
+          }
+        }
+      },
+      "signal_strength": {
+        "name": "Signal strength",
+        "state_attributes": {
+          "via": {
+            "name": "Via"
+          }
         }
       }
     }

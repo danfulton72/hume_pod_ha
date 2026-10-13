@@ -59,14 +59,55 @@ def weigh_in(kg, impedance=True):
     return pkts
 
 
+def _uuid(short):
+    return f"0000{short}-0000-1000-8000-00805f9b34fb"
+
+
+class FakeChar:
+    def __init__(self, short, props):
+        self.uuid, self.properties = _uuid(short), props
+
+
+class FakeService:
+    def __init__(self, short, chars):
+        self.uuid, self.characteristics = _uuid(short), chars
+
+
+class FakeServices:
+    """Enough of bleak's BleakGATTServiceCollection for the integration."""
+
+    def __init__(self, layout):
+        self._services = [
+            FakeService(svc, [FakeChar(c, p) for c, p in chars.items()])
+            for svc, chars in layout.items()
+        ]
+
+    def __iter__(self):
+        return iter(self._services)
+
+    def get_characteristic(self, uuid):
+        for svc in self._services:
+            for char in svc.characteristics:
+                if char.uuid == uuid:
+                    return char
+        return None
+
+
+BODY_POD_LAYOUT = {
+    "fff0": {
+        "fff1": ["write"],
+        "fff2": ["read", "write", "notify"],
+        "fff4": ["notify"],
+    }
+}
+
+
 class FakeClient:
-    def __init__(self, packets, disconnect_cb):
-        self.packets, self.disconnect_cb, self.handlers, self.written = (
-            packets,
-            disconnect_cb,
-            [],
-            [],
-        )
+    def __init__(self, packets, disconnect_cb, layout=None, disconnect_after=True):
+        self.packets, self.disconnect_cb = packets, disconnect_cb
+        self.handlers, self.written, self.responses = [], [], []
+        self.services = FakeServices(layout or BODY_POD_LAYOUT)
+        self.disconnect_after = disconnect_after
 
     async def start_notify(self, uuid, handler):
         if uuid.startswith("0000fff4"):
@@ -74,37 +115,49 @@ class FakeClient:
 
     async def write_gatt_char(self, uuid, data, response=False):
         self.written.append(bytes(data))
+        self.responses.append(response)
         asyncio.get_running_loop().create_task(self._stream())
 
     async def _stream(self):
         for p in self.packets:
             await asyncio.sleep(0)
             for h in self.handlers:
-                h(None, bytearray(p))
+                h(FakeChar("fff4", ["notify"]), bytearray(p))
         await asyncio.sleep(0)
-        self.disconnect_cb(self)
+        if self.disconnect_after:
+            self.disconnect_cb(self)
 
     async def disconnect(self):
         pass
 
 
-async def step_on(hass, ble, packets):
+def advert(rssi=-55, mfr=None):
+    adv = MagicMock(device=MagicMock(address=ADDR), rssi=rssi, source="proxy-1")
+    adv.device.name = "Body Pod 2"
+    adv.manufacturer_data = mfr or {94: bytes.fromhex("704bcad77bca") + bytes(12)}
+    return adv
+
+
+async def step_on(hass, ble, packets, connect=None, rssi=-55, **client_kw):
     clients = []
 
-    async def connect(cls, device, name, disconnected_callback=None, **kw):
-        clients.append(FakeClient(packets, disconnected_callback))
+    async def default_connect(cls, device, name, disconnected_callback=None, **kw):
+        clients.append(FakeClient(packets, disconnected_callback, **client_kw))
         return clients[-1]
 
-    adv = MagicMock(device=MagicMock(address=ADDR), rssi=-55)
-    adv.device.name = "Body Pod 2"
     scale = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
     scale._cooldown_until = 0
-    with patch("custom_components.hume_pod.scale.establish_connection", side_effect=connect):
-        ble["cb"](adv, None)
-        ble["cb"](adv, None)  # burst of adverts must not start a 2nd session
+    with patch(
+        "custom_components.hume_pod.scale.establish_connection",
+        side_effect=connect or default_connect,
+    ):
+        ble["cb"](advert(rssi), None)
+        ble["cb"](advert(rssi), None)  # burst of adverts must not start a 2nd session
         await hass.async_block_till_done(wait_background_tasks=True)
-    assert len(clients) == 1
-    return clients[0]
+    if connect is None:
+        assert len(clients) == 1
+        return clients[0]
+    return None
 
 
 async def setup_scale(hass, people):
@@ -419,3 +472,53 @@ async def test_first_person_invalid_date_shows_error(hass):
     assert r["type"] is FlowResultType.CREATE_ENTRY
     (sub,) = r["result"].subentries.values()
     assert sub.data["birthdate"] == "1974-01-01"
+
+
+# ---- connection diagnostics -------------------------------------------------
+
+
+async def test_connect_failure_reported(hass, ble, caplog):
+    from bleak.exc import BleakError
+
+    await setup_scale(hass, [("Dan", DAN)])
+
+    async def fail(*a, **kw):
+        raise BleakError("Device disappeared")
+
+    await step_on(hass, ble, [], connect=fail, rssi=-94)
+    st = hass.states.get("sensor.body_pod_status")
+    assert st.state == "error"
+    assert "couldn't connect" in st.attributes["last_error"]
+    assert "-94" in st.attributes["last_error"]
+    assert st.attributes["via"] == "proxy-1"
+    assert hass.states.get("sensor.body_pod_signal_strength").state == "-94"
+    assert "couldn't connect" in caplog.text and "WARNING" in caplog.text
+
+
+async def test_silent_scale_gives_up_quickly(hass, ble):
+    await setup_scale(hass, [("Dan", DAN)])
+    with patch("custom_components.hume_pod.scale.NO_DATA_TIMEOUT", 0.05):
+        await step_on(hass, ble, [], disconnect_after=False)
+    st = hass.states.get("sensor.body_pod_status")
+    assert st.state == "error"
+    assert "sent no data" in st.attributes["last_error"]
+
+
+async def test_unexpected_gatt_layout_reported(hass, ble):
+    await setup_scale(hass, [("Dan", DAN)])
+    client = await step_on(hass, ble, weigh_in(93.05), layout={"ffe0": {"ffe1": ["notify"]}})
+    assert client.written == []  # nothing sent to an unknown device
+    st = hass.states.get("sensor.body_pod_status")
+    assert st.state == "error"
+    assert "missing fff1, fff4" in st.attributes["last_error"]
+    assert "ffe1(notify)" in st.attributes["last_error"]
+
+
+async def test_write_without_response_when_required(hass, ble):
+    await setup_scale(hass, [("Dan", DAN)])
+    layout = {"fff0": {"fff1": ["write-without-response"], "fff4": ["notify"]}}
+    client = await step_on(hass, ble, weigh_in(93.05), layout=layout)
+    assert client.responses == [False]
+    assert hass.states.get("sensor.dan_weight").state == "93.05"
+    st = hass.states.get("sensor.body_pod_status")
+    assert st.state == "idle" and st.attributes["last_error"] is None

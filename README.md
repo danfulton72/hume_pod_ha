@@ -152,13 +152,24 @@ Every weigh-in fires `hume_pod_measurement`, including the matched `person` (or 
 
 ## Troubleshooting
 
-Download diagnostics from the integration's ⋮ menu (names, birthdates and the Bluetooth address are redacted), or enable debug logging:
+The scale's device page shows a **Status** sensor (with `last_error`, `last_attempt` and `via` attributes) and a **Signal strength** sensor. Problems are also written to the log as warnings.
+
+| What you see | What it means |
+| --- | --- |
+| `couldn't connect (RSSI -9x dBm via …)` | The proxy heard the scale but couldn't hold a connection. Below about -85 dBm this is common: move the proxy closer or add one near the scale. ESPHome proxies need `bluetooth_proxy: active: true`. |
+| `connected, but the scale sent no data` | The connection worked but no readings arrived. Step on within a few seconds of waking the scale. If it keeps happening, please open an issue with a debug log. |
+| `unexpected Bluetooth layout, missing …` | Your scale uses a different protocol from the one this integration knows. Please open an issue and include the message: it lists what the scale offers. |
+| `no weight over 5 kg` | The scale connected and talked, but nobody was on it before it went quiet. |
+
+For a debug log, use **Enable debug logging** on the integration page, tap the scale, weigh in, then **Disable debug logging** to download the log. It records each step: connection, the scale's services, every packet and the advertisement payload. Or add to `configuration.yaml`:
 
 ```yaml
 logger:
   logs:
     custom_components.hume_pod: debug
 ```
+
+Diagnostics (from the integration's ⋮ menu) include the same connection details, with names, birthdates and the Bluetooth address redacted.
 
 ## Development
 

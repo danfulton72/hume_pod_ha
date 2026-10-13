@@ -45,12 +45,14 @@ from .const import (
     DEFAULT_WEIGHT_TOLERANCE,
     DOMAIN,
     EVENT_MEASUREMENT,
+    NO_DATA_TIMEOUT,
     POST_IMPEDANCE_GRACE,
     SESSION_TIMEOUT,
     SEX_MALE,
     SIGNAL_UPDATED,
     STORAGE_VERSION,
     SUBENTRY_PERSON,
+    WARNING_INTERVAL,
 )
 from .matching import Candidate, MatchResult, match_person
 from .protocol import (
@@ -172,6 +174,14 @@ class HumePodScale:
         )
         self._busy = False
         self._cooldown_until = 0.0
+        # Diagnostics surfaced on the status sensor
+        self.rssi: int | None = None
+        self.via: str | None = None
+        self.last_error: str | None = None
+        self.last_attempt: datetime | None = None
+        self._rssi_notified = 0.0
+        self._last_warning = -WARNING_INTERVAL
+        self._last_mfr: dict[int, str] | None = None
         self._listeners: list[Callable[[], None]] = []
 
     # ---- persistence -------------------------------------------------------
@@ -276,29 +286,69 @@ class HumePodScale:
         service_info: bluetooth.BluetoothServiceInfoBleak,
         change: bluetooth.BluetoothChange,
     ) -> None:
+        self._note_advertisement(service_info)
         if self._busy or time.monotonic() < self._cooldown_until:
             return
         self._busy = True  # set synchronously so bursts of adverts don't race
-        _LOGGER.debug("%s woke up (RSSI %s), connecting", self.address, service_info.rssi)
+        _LOGGER.debug(
+            "%s woke up (RSSI %s dBm via %s), connecting",
+            self.address,
+            service_info.rssi,
+            self.via,
+        )
         self.entry.async_create_background_task(
             self.hass, self._async_run_session(service_info.device), f"hume_pod {self.address}"
         )
 
+    @callback
+    def _note_advertisement(self, service_info: bluetooth.BluetoothServiceInfoBleak) -> None:
+        """Track signal strength/proxy, and log advert payload changes for diagnosis."""
+        scanner = bluetooth.async_scanner_by_source(self.hass, service_info.source)
+        self.via = scanner.name if scanner else service_info.source
+        mfr = {k: v.hex() for k, v in service_info.manufacturer_data.items()}
+        if mfr != self._last_mfr:
+            self._last_mfr = mfr
+            _LOGGER.debug("%s advertisement manufacturer data: %s", self.address, mfr)
+        rssi = service_info.rssi
+        now = time.monotonic()
+        if self.rssi is None or (abs(rssi - self.rssi) >= 3 and now - self._rssi_notified > 30):
+            self.rssi = rssi
+            self._rssi_notified = now
+            self._notify()
+        else:
+            self.rssi = rssi
+
+    def _fail(self, message: str, *args: Any) -> None:
+        """Record a problem for the status sensor; warn (rate-limited) in the log."""
+        self.last_error = message % args if args else message
+        now = time.monotonic()
+        if now - self._last_warning > WARNING_INTERVAL:
+            self._last_warning = now
+            _LOGGER.warning("Body Pod %s: %s", self.address, self.last_error)
+        else:
+            _LOGGER.debug("Body Pod %s: %s", self.address, self.last_error)
+
     async def _async_run_session(self, ble_device: BLEDevice) -> None:
+        ok = False
         try:
-            await self._async_measure(ble_device)
-            self._set_status(STATUS_IDLE)
-        except (BleakError, TimeoutError) as err:
-            _LOGGER.debug("Session with %s failed: %s", self.address, err)
-            self._set_status(STATUS_ERROR)
+            ok = await self._async_measure(ble_device)
+        except BleakError as err:
+            self._fail(
+                "Bluetooth error during measurement (RSSI %s dBm via %s): %s",
+                self.rssi,
+                self.via,
+                err or type(err).__name__,
+            )
+        except TimeoutError:
+            self._fail("timed out talking to the scale (RSSI %s dBm via %s)", self.rssi, self.via)
         except Exception:
             _LOGGER.exception("Unexpected error talking to %s", self.address)
-            self._set_status(STATUS_ERROR)
+            self.last_error = "unexpected error, see log"
         finally:
             self.live_weight = None
             self._cooldown_until = time.monotonic() + COOLDOWN_AFTER_SESSION
             self._busy = False
-            self._notify()
+            self._set_status(STATUS_IDLE if ok else STATUS_ERROR)
 
     def _scale_profile_command(self) -> bytes:
         """The scale needs *a* profile to start; who it really is gets decided afterwards."""
@@ -312,7 +362,9 @@ class HumePodScale:
             activity=ACTIVITY_LEVELS.index(profile[CONF_ACTIVITY]),
         )
 
-    async def _async_measure(self, ble_device: BLEDevice) -> None:
+    async def _async_measure(self, ble_device: BLEDevice) -> bool:
+        """Run one weigh-in. Returns True if a reading was recorded."""
+        self.last_attempt = dt_util.utcnow()
         self._set_status(STATUS_CONNECTING)
         device = (
             bluetooth.async_ble_device_from_address(self.hass, self.address, connectable=True)
@@ -320,17 +372,36 @@ class HumePodScale:
         )
         disconnected = asyncio.Event()
         impedance_done = asyncio.Event()
+        first_packet = asyncio.Event()
         session = MeasurementSession()
 
-        client = await establish_connection(
-            BleakClientWithServiceCache,
-            device,
-            device.name or self.address,
-            disconnected_callback=lambda _c: self.hass.loop.call_soon_threadsafe(disconnected.set),
-            max_attempts=3,
+        started = time.monotonic()
+        try:
+            client = await establish_connection(
+                BleakClientWithServiceCache,
+                device,
+                device.name or self.address,
+                disconnected_callback=lambda _c: self.hass.loop.call_soon_threadsafe(
+                    disconnected.set
+                ),
+                max_attempts=3,
+            )
+        except BleakError as err:
+            self._fail(
+                "couldn't connect (RSSI %s dBm via %s): %s. The signal may be too weak; "
+                "a Bluetooth proxy with active connections closer to the scale usually fixes this",
+                self.rssi,
+                self.via,
+                err or type(err).__name__,
+            )
+            return False
+        _LOGGER.debug(
+            "%s connected in %.1fs via %s", self.address, time.monotonic() - started, self.via
         )
 
-        def _on_notify(_char: Any, data: bytearray) -> None:
+        def _on_notify(char: Any, data: bytearray) -> None:
+            _LOGGER.debug("%s notify %s: %s", self.address, _short_uuid(char), bytes(data).hex())
+            self.hass.loop.call_soon_threadsafe(first_packet.set)
             pkt = session.feed(data)
             if isinstance(pkt, WeightPacket) and pkt.weight_kg > MIN_WEIGHT_KG:
                 self.live_weight = pkt.weight_kg
@@ -340,13 +411,26 @@ class HumePodScale:
                 self.hass.loop.call_soon_threadsafe(impedance_done.set)
 
         try:
+            if not self._check_services(client):
+                return False
             await client.start_notify(CHAR_NOTIFY_UUID, _on_notify)
             with contextlib.suppress(BleakError, ValueError):
                 await client.start_notify(CHAR_RW_UUID, _on_notify)
-            await client.write_gatt_char(
-                CHAR_WRITE_UUID, self._scale_profile_command(), response=True
-            )
+            command = self._scale_profile_command()
+            write_char = client.services.get_characteristic(CHAR_WRITE_UUID)
+            with_response = "write" in write_char.properties if write_char else True
+            await client.write_gatt_char(CHAR_WRITE_UUID, command, response=with_response)
+            _LOGGER.debug("%s sent profile %s", self.address, command.hex())
             self._set_status(STATUS_MEASURING)
+
+            await _wait_first((first_packet, disconnected), NO_DATA_TIMEOUT)
+            if not first_packet.is_set():
+                self._fail(
+                    "connected, but the scale sent no data within %ss%s",
+                    NO_DATA_TIMEOUT,
+                    " (it disconnected)" if disconnected.is_set() else "",
+                )
+                return False
 
             await _wait_first((impedance_done, disconnected), SESSION_TIMEOUT)
             if impedance_done.is_set() and not disconnected.is_set():
@@ -357,11 +441,48 @@ class HumePodScale:
                 await client.disconnect()
 
         if (weight := session.weight_kg) is None:
-            _LOGGER.debug("%s: session ended without a weight reading", self.address)
-            return
+            self._fail(
+                "the scale sent data but no weight over %s kg; step on within a few "
+                "seconds of waking it",
+                MIN_WEIGHT_KG,
+            )
+            return False
+        if not session.has_impedance:
+            _LOGGER.debug(
+                "%s: weight %.2f kg without impedance (stepped off early, or not barefoot)",
+                self.address,
+                weight,
+            )
+        self.last_error = None
         self.handle_weigh_in(
             weight, session.impedance.get(0), session.impedance.get(1), dt_util.utcnow()
         )
+        return True
+
+    def _check_services(self, client: BleakClientWithServiceCache) -> bool:
+        """Make sure the scale exposes the expected GATT layout; describe it if not."""
+        services = client.services
+        layout = {
+            _short_uuid(svc.uuid): sorted(
+                f"{_short_uuid(c.uuid)}({'/'.join(c.properties)})" for c in svc.characteristics
+            )
+            for svc in services
+        }
+        _LOGGER.debug("%s GATT services: %s", self.address, layout)
+        missing = [
+            _short_uuid(uuid)
+            for uuid in (CHAR_WRITE_UUID, CHAR_NOTIFY_UUID)
+            if services.get_characteristic(uuid) is None
+        ]
+        if missing:
+            self._fail(
+                "unexpected Bluetooth layout, missing %s. Found: %s. Please report this "
+                "at https://github.com/danfulton72/hume_pod_ha/issues",
+                ", ".join(missing),
+                layout,
+            )
+            return False
+        return True
 
     # ---- attribution -------------------------------------------------------
 
@@ -501,6 +622,11 @@ class HumePodScale:
     def diagnostics(self) -> dict[str, Any]:
         return {
             "status": self.status,
+            "rssi": self.rssi,
+            "via": self.via,
+            "last_error": self.last_error,
+            "last_attempt": _iso(self.last_attempt),
+            "last_manufacturer_data": self._last_mfr,
             "options": dict(self.entry.options),
             "people": {
                 sid: {"has_history": bool(p.measured_at), **p.as_dict()}
@@ -508,6 +634,14 @@ class HumePodScale:
             },
             "pending": self.pending.as_dict() if self.pending else None,
         }
+
+
+def _short_uuid(obj: Any) -> str:
+    """'0000fff4-0000-1000-8000-00805f9b34fb' -> 'fff4' (accepts a characteristic too)."""
+    uuid = str(getattr(obj, "uuid", obj) or "?").lower()
+    if uuid.startswith("0000") and uuid.endswith("-0000-1000-8000-00805f9b34fb"):
+        return uuid[4:8]
+    return uuid
 
 
 async def _wait_first(events: Sequence[asyncio.Event], seconds: float) -> None:

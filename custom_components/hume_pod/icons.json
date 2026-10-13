@@ -167,6 +167,9 @@
       },
       "impedance_high_left_leg": {
         "default": "mdi:omega"
+      },
+      "signal_strength": {
+        "default": "mdi:signal"
       }
     }
   },

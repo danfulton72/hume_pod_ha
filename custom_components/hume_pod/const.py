@@ -30,6 +30,8 @@ ACTIVITY_LEVELS = ["sedentary", "moderate", "active"]
 # Seconds
 SESSION_TIMEOUT = 120
 POST_IMPEDANCE_GRACE = 5
+NO_DATA_TIMEOUT = 20  # connected but silent -> give up early and say so
+WARNING_INTERVAL = 600  # don't repeat the same kind of warning more than every 10 min
 COOLDOWN_AFTER_SESSION = 45
 
 STORAGE_VERSION = 1

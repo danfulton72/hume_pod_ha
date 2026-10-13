@@ -10,7 +10,7 @@
  * (latest results) and the recorder's long-term statistics (trends).
  */
 
-const CARD_VERSION = "0.3.0";
+const CARD_VERSION = "0.3.1";
 
 const COLORS = {
   blue: "#3b82f6", amber: "#f59e0b", green: "#22c55e", cyan: "#06b6d4",

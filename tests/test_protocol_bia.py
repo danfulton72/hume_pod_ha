@@ -67,3 +67,33 @@ def test_worked_example():
 def test_bad_contact_rejected():
     assert not bia.impedance_is_valid((0, 0, 0, 0, 0))
     assert bia.impedance_is_valid((331.9, 322.9, 27.0, 230.7, 232.1))
+
+
+# Real Body Pod 2 advertisement (no local name; HA shows the address as name).
+POD2_ADDR = "8C:8C:29:4E:33:42"
+POD2_UUIDS = ["0000fff0-0000-1000-8000-00805f9b34fb", "00001812-0000-1000-8000-00805f9b34fb"]
+POD2_MFR = {cid: bytes.fromhex("8c8c294e3342") + bytes(12) for cid in (94, 95, 100)}
+
+
+def test_body_pod2_without_name_is_recognised():
+    assert protocol.looks_like_body_pod(POD2_ADDR, POD2_ADDR, POD2_UUIDS, POD2_MFR)
+    assert protocol.looks_like_body_pod(None, POD2_ADDR, POD2_UUIDS, {94: POD2_MFR[94]})
+    assert protocol.is_placeholder_name(POD2_ADDR, POD2_ADDR)
+    assert protocol.is_placeholder_name("8C-8C-29-4E-33-42", POD2_ADDR)
+    assert not protocol.is_placeholder_name("Body Pod 2", POD2_ADDR)
+
+
+def test_named_pod_recognised():
+    assert protocol.looks_like_body_pod("Body Pod 2", "AA:BB:CC:DD:EE:FF", [], {})
+
+
+def test_other_fff0_devices_rejected():
+    other = "11:22:33:44:55:66"
+    assert not protocol.looks_like_body_pod(other, other, POD2_UUIDS, {76: bytes(18)})
+    assert not protocol.looks_like_body_pod(other, other, POD2_UUIDS, {})
+    # Address in payload but no FFF0 service
+    assert not protocol.looks_like_body_pod(POD2_ADDR, POD2_ADDR, [], POD2_MFR)
+    # macOS-style UUID addresses can't be checked
+    assert not protocol.looks_like_body_pod(
+        None, "6E7A9A3C-0000-4000-8000-000000000000", POD2_UUIDS, POD2_MFR
+    )

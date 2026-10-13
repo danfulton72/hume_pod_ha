@@ -42,16 +42,15 @@ from .const import (
     SEX_MALE,
     SUBENTRY_PERSON,
 )
-from .protocol import SERVICE_UUID
-
-NAME_PREFIXES = ("body pod", "hume")
+from .protocol import is_placeholder_name, looks_like_body_pod
 
 
 def _is_body_pod(info: BluetoothServiceInfoBleak) -> bool:
-    name = (info.name or "").lower()
-    return name.startswith(NAME_PREFIXES) or (
-        SERVICE_UUID in info.service_uuids and name.startswith("pod")
-    )
+    return looks_like_body_pod(info.name, info.address, info.service_uuids, info.manufacturer_data)
+
+
+def _display_name(info: BluetoothServiceInfoBleak) -> str:
+    return "Body Pod" if is_placeholder_name(info.name, info.address) else info.name
 
 
 PERSON_SCHEMA = vol.Schema(
@@ -115,10 +114,14 @@ class HumePodConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> ConfigFlowResult:
+        # The manifest matches any FFF0 device, which is a common service on
+        # unrelated gadgets, so confirm it really is a Body Pod first.
+        if not _is_body_pod(discovery_info):
+            return self.async_abort(reason="not_supported")
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         self._address = discovery_info.address
-        self._device_name = discovery_info.name or "Body Pod"
+        self._device_name = _display_name(discovery_info)
         self.context["title_placeholders"] = {"name": self._device_name}
         return await self.async_step_bluetooth_confirm()
 
@@ -146,9 +149,15 @@ class HumePodConfigFlow(ConfigFlow, domain=DOMAIN):
         for info in async_discovered_service_info(self.hass, connectable=True):
             if info.address in configured or not _is_body_pod(info):
                 continue
-            self._discovered[info.address] = f"{info.name} ({info.address})"
+            self._discovered[info.address] = f"{_display_name(info)} ({info.address})"
 
         if not self._discovered:
+            # Seen, but only by adapters/proxies that can't make connections?
+            if any(
+                _is_body_pod(info) and info.address not in configured
+                for info in async_discovered_service_info(self.hass, connectable=False)
+            ):
+                return self.async_abort(reason="not_connectable")
             return self.async_abort(reason="no_devices_found")
 
         return self.async_show_form(

@@ -14,6 +14,10 @@
     {
       "connectable": true,
       "local_name": "Hume*"
+    },
+    {
+      "connectable": true,
+      "service_uuid": "0000fff0-0000-1000-8000-00805f9b34fb"
     }
   ],
   "codeowners": [
@@ -28,5 +32,5 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/danfulton72/hume_pod_ha/issues",
   "requirements": [],
-  "version": "0.3.0"
+  "version": "0.3.1"
 }

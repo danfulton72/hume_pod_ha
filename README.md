@@ -22,7 +22,7 @@ Weigh-ins with socks on (or stepping off early) still record **weight** and **BM
 
 **Manual:** copy `custom_components/hume_pod` into your `config/custom_components/` folder and restart.
 
-Requires Home Assistant 2025.6 or newer with Bluetooth working, and the scale in range of an adapter or [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html) that supports active connections. The integration's own icon shows in HA 2026.3 and later.
+Requires Home Assistant 2025.6 or newer with Bluetooth working, and the scale in range of an adapter or [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html) that supports active connections (`bluetooth_proxy: active: true`). A passive-only proxy can see the scale but can't talk to it. The integration's own icon shows in HA 2026.3 and later.
 
 ## Setup
 
@@ -146,7 +146,7 @@ Every weigh-in fires `hume_pod_measurement`, including the matched `person` (or 
 ## Limitations
 
 - **Estimates, not clinical values.** The scale reports only weight and impedance; everything else comes from published BIA regression equations that Blue2Scale's author calibrated against the Hume app.
-- **Not yet verified on real hardware.** Protocol handling is tested with the packet formats documented by Blue2Scale. If your scale advertises under a name other than `Body Pod*` or `Hume*` it won't be auto-discovered; please open an issue with the name shown in **Settings → Bluetooth → Advertisement monitor**.
+- **Discovery.** Scales are recognised by the name `Body Pod*`/`Hume*`, or, for units like the Body Pod 2 that advertise no name, by the `FFF0` service plus manufacturer data that starts with the scale's own Bluetooth address. If yours still isn't found, open an issue with a screenshot of its entry in **Settings → Bluetooth → Advertisement monitor**.
 - The scale itself is always sent the first person's profile to start a measurement. This only affects the scale's own display; HA calculates results with the matched person's profile.
 - After a weigh-in the integration ignores the scale for 45 seconds so it doesn't reconnect while the scale is still awake.
 

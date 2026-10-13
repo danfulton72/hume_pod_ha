@@ -160,6 +160,72 @@ async def test_bluetooth_discovery_flow(hass):
     assert sub.title == "Dan" and sub.data == DAN and sub.subentry_type == SUBENTRY_PERSON
 
 
+def _service_info(address, name, uuids, mfr, connectable=True):
+    from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
+
+    info = MagicMock(spec=BluetoothServiceInfoBleak)
+    info.address, info.name, info.rssi = address, name, -60
+    info.service_uuids, info.manufacturer_data, info.service_data = uuids, mfr, {}
+    info.connectable = connectable
+    return info
+
+
+POD2_ADDR = "8C:8C:29:4E:33:42"
+POD2_UUIDS = ["0000fff0-0000-1000-8000-00805f9b34fb", "00001812-0000-1000-8000-00805f9b34fb"]
+POD2_MFR = {94: bytes.fromhex("8c8c294e3342") + bytes(12)}
+
+
+async def test_nameless_body_pod2_discovered(hass):
+    info = _service_info(POD2_ADDR, POD2_ADDR, POD2_UUIDS, POD2_MFR)
+    with patch("custom_components.hume_pod.async_setup_entry", return_value=True):
+        r = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_BLUETOOTH}, data=info
+        )
+        assert r["step_id"] == "bluetooth_confirm"
+        assert r["description_placeholders"] == {"name": "Body Pod"}
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_NAME: "Dan", **DAN})
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    assert r["result"].unique_id == POD2_ADDR
+
+
+async def test_unrelated_fff0_device_aborts(hass):
+    info = _service_info("11:22:33:44:55:66", "LED strip", POD2_UUIDS[:1], {76: bytes(10)})
+    r = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_BLUETOOTH}, data=info
+    )
+    assert r["type"] is FlowResultType.ABORT and r["reason"] == "not_supported"
+
+
+async def test_user_flow_lists_nameless_pod(hass):
+    info = _service_info(POD2_ADDR, POD2_ADDR, POD2_UUIDS, POD2_MFR)
+    with patch(
+        "custom_components.hume_pod.config_flow.async_discovered_service_info",
+        return_value=[info],
+    ):
+        r = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+    assert r["step_id"] == "user"
+    assert r["data_schema"].schema[CONF_ADDRESS].container == {POD2_ADDR: f"Body Pod ({POD2_ADDR})"}
+
+
+async def test_user_flow_explains_passive_proxy(hass):
+    info = _service_info(POD2_ADDR, POD2_ADDR, POD2_UUIDS, POD2_MFR, connectable=False)
+
+    def discovered(hass, connectable=True):
+        return [] if connectable else [info]
+
+    with patch(
+        "custom_components.hume_pod.config_flow.async_discovered_service_info",
+        side_effect=discovered,
+    ):
+        r = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+    assert r["type"] is FlowResultType.ABORT and r["reason"] == "not_connectable"
+
+
 async def test_add_and_edit_person(hass, ble):
     entry = await setup_scale(hass, [("Dan", DAN)])
 

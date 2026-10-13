@@ -28,6 +28,47 @@ ACTIVITY_MODERATE = 1
 ACTIVITY_ACTIVE = 2
 
 
+NAME_PREFIXES = ("body pod", "hume")
+
+
+def _address_bytes(address: str) -> bytes | None:
+    try:
+        raw = bytes.fromhex(address.replace(":", "").replace("-", ""))
+    except ValueError:
+        return None
+    return raw if len(raw) == 6 else None
+
+
+def looks_like_body_pod(
+    name: str | None,
+    address: str,
+    service_uuids: list[str] | tuple[str, ...],
+    manufacturer_data: dict[int, bytes],
+) -> bool:
+    """Identify a Body Pod from its advertisement.
+
+    Some units (e.g. Body Pod 2) don't advertise a name at all. Those are
+    recognised by the FFF0 service plus Lefu-style manufacturer data, whose
+    payload starts with the scale's own Bluetooth address.
+    """
+    if (name or "").strip().lower().startswith(NAME_PREFIXES):
+        return True
+    if SERVICE_UUID not in [u.lower() for u in service_uuids]:
+        return False
+    mac = _address_bytes(address)
+    if mac is None:  # e.g. macOS hides real addresses; fall back to name only
+        return False
+    return any(payload[:6] in (mac, mac[::-1]) for payload in manufacturer_data.values())
+
+
+def is_placeholder_name(name: str | None, address: str) -> bool:
+    """HA uses the address as the name when a device advertises none."""
+    if not name:
+        return True
+    norm = name.replace("-", ":").upper()
+    return norm == address.upper() or _address_bytes(name) is not None
+
+
 def _le16(data: bytes, offset: int) -> int:
     return data[offset] | (data[offset + 1] << 8)
 

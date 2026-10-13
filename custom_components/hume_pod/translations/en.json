@@ -34,7 +34,9 @@
     },
     "abort": {
       "already_configured": "This Body Pod is already configured.",
-      "no_devices_found": "No Body Pod found. Tap the scale to wake it, make sure a Bluetooth adapter or proxy is in range, and try again."
+      "no_devices_found": "No Body Pod found. Tap the scale to wake it, make sure a Bluetooth adapter or proxy is in range, and try again.",
+      "not_supported": "This Bluetooth device isn't a Hume Body Pod.",
+      "not_connectable": "A Body Pod was found, but only by a Bluetooth proxy or adapter that can't make connections. Enable active connections on your ESPHome Bluetooth proxy (bluetooth_proxy: active: true), or move an adapter that can connect within range."
     }
   },
   "config_subentries": {
